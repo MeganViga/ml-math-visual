@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chapter 8 — Meet the Loan Data | Math for ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .act-badge {
+      display: inline-block;
+      padding: .2rem .7rem;
+      border-radius: 20px;
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      margin-bottom: .6rem;
+    }
+    .loan-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .loan-table th {
+      background: var(--surface2); color: var(--muted);
+      padding: .45rem .8rem; border: 1px solid var(--border);
+      text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em;
+    }
+    .loan-table td { padding: .45rem .8rem; border: 1px solid var(--border); color: var(--text); }
+    .loan-table tr.default-yes td { background: rgba(248,113,113,.06); }
+    .loan-table tr.default-no  td { background: rgba(74,222,128,.06); }
+    .badge-default { display:inline-block; padding:.15rem .5rem; border-radius:20px; font-size:.75rem; background:rgba(248,113,113,.15); color:var(--danger); border:1px solid var(--danger); }
+    .badge-repaid  { display:inline-block; padding:.15rem .5rem; border-radius:20px; font-size:.75rem; background:rgba(74,222,128,.12); color:var(--green); border:1px solid var(--green-dim); }
+
+    .hist-wrap { display:grid; grid-template-columns: repeat(3,1fr); gap:1rem; margin-top:.8rem; }
+    @media(max-width:600px){ .hist-wrap { grid-template-columns: 1fr; } }
+    .hist-chart { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:.8rem; }
+    .hist-title { font-size:.78rem; color:var(--muted); margin-bottom:.5rem; text-align:center; }
+    .hist-svg { width:100%; height:140px; display:block; }
+
+    .stat-row { display:grid; grid-template-columns:repeat(3,1fr); gap:.8rem; margin-top:.8rem; }
+    @media(max-width:500px){ .stat-row { grid-template-columns:1fr 1fr; } }
+    .stat-cell {
+      background: var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm);
+      padding:.6rem .9rem; text-align:center;
+    }
+    .stat-val { font-size:1.2rem; font-weight:700; font-family:var(--mono); color:var(--accent); }
+    .stat-lbl { font-size:.72rem; color:var(--muted); margin-top:.15rem; }
+
+    .feature-filter { display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:.8rem; }
+    .filter-btn {
+      padding:.3rem .8rem; border-radius:20px; border:1px solid var(--border);
+      background:var(--surface2); color:var(--muted); cursor:pointer; font-size:.8rem;
+    }
+    .filter-btn.active-all   { border-color:var(--accent); color:var(--accent); background:rgba(59,130,246,.1); }
+    .filter-btn.active-def   { border-color:var(--danger); color:var(--danger); background:rgba(248,113,113,.1); }
+    .filter-btn.active-repd  { border-color:var(--green);  color:var(--green);  background:rgba(74,222,128,.1); }
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li>
+      <li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html">3</a></li>
+      <li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li>
+      <li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html" class="active">8</a></li>
+      <li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li>
+      <li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li>
+      <li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li>
+      <li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="chapter-hero">
+      <div class="act-badge">Act 2 · Statistics</div>
+      <div class="chapter-eyebrow">Chapter 8 of 19</div>
+      <h1 class="chapter-title">Meet the Loan Data</h1>
+      <p class="chapter-intro">
+        In Ch 1–7 we learned the linear algebra to structure data, make predictions, and solve for θ.
+        Now we go deeper: before fitting a model we need to <em>understand</em> the data.
+        Statistics gives us the tools — distributions, mean, std dev — to see what the loan data is telling us.
+      </p>
+    </div>
+
+    <div class="insight">
+      <strong>Our dataset — 8 past loan applicants.</strong>
+      Each row records income, age, loan amount, debt ratio, and whether the person
+      <span style="color:var(--danger)">defaulted</span> or
+      <span style="color:var(--green)">repaid</span>.
+      This same dataset runs through every chapter — from matrices (Ch 1) to evaluation (Ch 19).
+    </div>
+
+    <!-- ── Dataset ──────────────────────────────────────────────── -->
+    <h2 class="section-heading">The loan dataset</h2>
+    <p class="section-sub">
+      Each row is one past applicant. This table runs throughout the entire 19-chapter course.
+    </p>
+
+    <div class="card">
+      <div class="card-title">Loan applicant records</div>
+      <div style="overflow-x:auto">
+        <table class="loan-table" id="loan-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th style="color:var(--accent)">Income ($)</th>
+              <th style="color:var(--accent)">Age</th>
+              <th style="color:var(--accent)">Loan ($)</th>
+              <th style="color:var(--accent)">Debt Ratio</th>
+              <th style="color:var(--gold)">Outcome</th>
+            </tr>
+          </thead>
+          <tbody id="loan-tbody"></tbody>
+        </table>
+      </div>
+      <p style="font-size:.75rem;color:var(--muted);margin-top:.6rem">
+        Debt ratio = loan amount ÷ annual income. Higher = more risky.
+      </p>
+    </div>
+
+    <!-- ── Feature distributions ────────────────────────────────── -->
+    <h2 class="section-heading">Distribution of each feature</h2>
+    <p class="section-sub">
+      A <strong>distribution</strong> shows us what values a feature takes and how often.
+      Use the filter to see how defaulters differ from repayers.
+    </p>
+
+    <div class="feature-filter">
+      <button class="filter-btn active-all" data-filter="all">All applicants</button>
+      <button class="filter-btn" data-filter="default">Defaulted only</button>
+      <button class="filter-btn" data-filter="repaid">Repaid only</button>
+    </div>
+
+    <div class="hist-wrap">
+      <div class="hist-chart">
+        <div class="hist-title">Income ($k)</div>
+        <svg class="hist-svg" id="hist-income" viewBox="0 0 200 140"></svg>
+      </div>
+      <div class="hist-chart">
+        <div class="hist-title">Age (years)</div>
+        <svg class="hist-svg" id="hist-age" viewBox="0 0 200 140"></svg>
+      </div>
+      <div class="hist-chart">
+        <div class="hist-title">Debt Ratio</div>
+        <svg class="hist-svg" id="hist-debt" viewBox="0 0 200 140"></svg>
+      </div>
+    </div>
+
+    <!-- ── Summary statistics ────────────────────────────────────── -->
+    <h2 class="section-heading">Summary statistics</h2>
+    <p class="section-sub">
+      Three numbers summarise a distribution: <strong>mean</strong> (centre),
+      <strong>std dev</strong> (spread), and <strong>range</strong>.
+      Watch how these change between defaulters and repayers.
+    </p>
+
+    <div class="card">
+      <div class="card-title">Income — summary statistics</div>
+      <div id="stats-panel">
+        <div class="stat-row">
+          <div class="stat-cell"><div class="stat-val" id="s-mean">–</div><div class="stat-lbl">Mean income</div></div>
+          <div class="stat-cell"><div class="stat-val" id="s-median">–</div><div class="stat-lbl">Median income</div></div>
+          <div class="stat-cell"><div class="stat-val" id="s-std">–</div><div class="stat-lbl">Std deviation</div></div>
+          <div class="stat-cell"><div class="stat-val" id="s-min">–</div><div class="stat-lbl">Min income</div></div>
+          <div class="stat-cell"><div class="stat-val" id="s-max">–</div><div class="stat-lbl">Max income</div></div>
+          <div class="stat-cell"><div class="stat-val" id="s-count">–</div><div class="stat-lbl">Count</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="insight insight-gold">
+      <strong>Key observation:</strong>
+      Defaulters tend to have <em>lower income</em> and a <em>higher debt ratio</em>.
+      But there's overlap — no single feature cleanly separates the two groups.
+      This is why we need a model that combines all features together.
+    </div>
+
+    <div class="insight" style="border-color:var(--accent)">
+      <strong>Story so far:</strong>
+      We have our loan dataset with 4 features and a yes/no outcome. Distributions show income
+      and debt ratio differ between defaulters and repayers — but there's overlap.
+      <br/>
+      <strong>Next:</strong> Which features correlate most with default? → Chapter 9
+    </div>
+
+    <div class="chapter-nav">
+      <a href="./chapter7.html" class="btn">← Chapter 7</a>
+      <a href="./chapter9.html" class="btn btn-primary">Chapter 9: Feature Correlation →</a>
+    </div>
+  </div>
+
+  <script>
+    const data = [
+      { id:1, income:35000, age:28, loan:15000, debt:0.43, y:1 },
+      { id:2, income:55000, age:45, loan:20000, debt:0.36, y:0 },
+      { id:3, income:42000, age:32, loan:18000, debt:0.43, y:1 },
+      { id:4, income:80000, age:52, loan:25000, debt:0.31, y:0 },
+      { id:5, income:28000, age:24, loan:12000, debt:0.43, y:1 },
+      { id:6, income:65000, age:38, loan:22000, debt:0.34, y:0 },
+      { id:7, income:38000, age:29, loan:16000, debt:0.42, y:1 },
+      { id:8, income:72000, age:48, loan:24000, debt:0.33, y:0 },
+    ];
+
+    // ── Render table ────────────────────────────────────────────
+    const tbody = document.getElementById('loan-tbody');
+    data.forEach(d => {
+      const tr = document.createElement('tr');
+      tr.className = d.y === 1 ? 'default-yes' : 'default-no';
+      tr.innerHTML = `
+        <td>${d.id}</td>
+        <td>$${d.income.toLocaleString()}</td>
+        <td>${d.age}</td>
+        <td>$${d.loan.toLocaleString()}</td>
+        <td>${d.debt.toFixed(2)}</td>
+        <td>${d.y === 1
+          ? '<span class="badge-default">Defaulted</span>'
+          : '<span class="badge-repaid">Repaid</span>'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // ── Histogram helper ────────────────────────────────────────
+    function drawHist(svgId, vals, color) {
+      const svg = document.getElementById(svgId);
+      svg.innerHTML = '';
+      const W = 200, H = 140, padL = 8, padR = 8, padT = 10, padB = 22;
+      const n = 5;
+      const mn = Math.min(...vals), mx = Math.max(...vals);
+      const range = mx - mn || 1;
+      const bins = Array(n).fill(0);
+      vals.forEach(v => {
+        const bi = Math.min(n-1, Math.floor((v - mn) / range * n));
+        bins[bi]++;
+      });
+      const maxBin = Math.max(...bins, 1);
+      const bw = (W - padL - padR) / n;
+
+      function ns(tag, a = {}) {
+        const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+        for (const [k, v] of Object.entries(a)) el.setAttribute(k, v);
+        return el;
+      }
+
+      bins.forEach((cnt, i) => {
+        const bh = ((cnt / maxBin) * (H - padT - padB));
+        const x = padL + i * bw + 2;
+        const y = H - padB - bh;
+        const rect = ns('rect', { x, y, width: bw - 4, height: bh || 1,
+          fill: color, rx: 3, opacity: 0.85 });
+        svg.appendChild(rect);
+        // count label
+        if (cnt > 0) {
+          const t = ns('text', { x: x + (bw-4)/2, y: y - 3,
+            'text-anchor': 'middle', fill: '#6b7c90', 'font-size': 9 });
+          t.textContent = cnt;
+          svg.appendChild(t);
+        }
+      });
+      // x axis
+      const axis = ns('line', { x1: padL, y1: H - padB, x2: W - padR, y2: H - padB,
+        stroke: '#2a3a50', 'stroke-width': 1 });
+      svg.appendChild(axis);
+      // labels
+      [mn, (mn+mx)/2, mx].forEach((v, i) => {
+        const x = padL + i * (W - padL - padR) / 2;
+        const t = ns('text', { x, y: H - 6, 'text-anchor': 'middle', fill: '#6b7c90', 'font-size': 9 });
+        t.textContent = v >= 1000 ? Math.round(v/1000)+'k' : v.toFixed(2);
+        svg.appendChild(t);
+      });
+    }
+
+    // ── Stats helper ──────────────────────────────────────────
+    function calcStats(vals) {
+      const n = vals.length;
+      const mean = vals.reduce((s,v)=>s+v,0)/n;
+      const sorted = [...vals].sort((a,b)=>a-b);
+      const median = n%2===0 ? (sorted[n/2-1]+sorted[n/2])/2 : sorted[Math.floor(n/2)];
+      const std = Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/n);
+      return { mean, median, std, min: sorted[0], max: sorted[n-1], count: n };
+    }
+
+    let currentFilter = 'all';
+    function filterData(f) {
+      if (f === 'all') return data;
+      if (f === 'default') return data.filter(d => d.y === 1);
+      return data.filter(d => d.y === 0);
+    }
+
+    function updateViz(filter) {
+      const fd = filterData(filter);
+      const color = filter === 'default' ? '#f87171' : filter === 'repaid' ? '#4ade80' : '#3b82f6';
+      drawHist('hist-income', fd.map(d=>d.income), color);
+      drawHist('hist-age', fd.map(d=>d.age), color);
+      drawHist('hist-debt', fd.map(d=>d.debt), color);
+      const st = calcStats(fd.map(d=>d.income));
+      document.getElementById('s-mean').textContent = '$'+Math.round(st.mean/1000)+'k';
+      document.getElementById('s-median').textContent = '$'+Math.round(st.median/1000)+'k';
+      document.getElementById('s-std').textContent = '$'+Math.round(st.std/1000)+'k';
+      document.getElementById('s-min').textContent = '$'+Math.round(st.min/1000)+'k';
+      document.getElementById('s-max').textContent = '$'+Math.round(st.max/1000)+'k';
+      document.getElementById('s-count').textContent = st.count;
+    }
+
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.className = 'filter-btn');
+        const f = btn.dataset.filter;
+        btn.className = `filter-btn active-${f === 'all' ? 'all' : f === 'default' ? 'def' : 'repd'}`;
+        currentFilter = f;
+        updateViz(f);
+      });
+    });
+
+    updateViz('all');
+  </script>
+</body>
+</html>

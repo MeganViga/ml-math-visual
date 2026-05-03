@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Math for ML — Interactive Visual Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .hero {
+      padding: 3.5rem 0 2.5rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2.5rem;
+    }
+    .hero-tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      font-weight: 600;
+      border: 1px solid var(--accent-dim);
+      border-radius: 20px;
+      padding: 0.2rem 0.7rem;
+      margin-bottom: 1rem;
+    }
+    .hero-title {
+      font-size: clamp(1.8rem, 5vw, 2.8rem);
+      font-weight: 700;
+      line-height: 1.15;
+      margin-bottom: 1rem;
+    }
+    .hero-title span { color: var(--accent); }
+    .hero-desc {
+      font-size: 1.05rem;
+      color: var(--muted);
+      max-width: 58ch;
+      margin-bottom: 1.5rem;
+    }
+    .hero-usecase {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.6rem 1rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+    .hero-usecase strong { color: var(--gold); }
+
+    /* Chapter cards grid */
+    .chapters-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+    @media (min-width: 560px) {
+      .chapters-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    .chapter-card {
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.3rem 1.4rem;
+      text-decoration: none;
+      transition: border-color 0.15s, background 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+    .chapter-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent-dim);
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .chapter-card:hover {
+      border-color: var(--accent-dim);
+      background: var(--surface2);
+      text-decoration: none;
+    }
+    .chapter-card:hover::before { opacity: 1; }
+
+    .ch-num {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .ch-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+    }
+    .ch-desc {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.5;
+      flex: 1;
+    }
+    .ch-tags {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      margin-top: 0.8rem;
+    }
+    .ch-tag {
+      font-size: 0.68rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    .prereq-note {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 2rem;
+    }
+    .prereq-note strong { color: var(--text); }
+  </style>
+</head>
+<body>
+    <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html" class="active">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li>
+      <li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html">3</a></li>
+      <li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li>
+      <li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li>
+      <li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li>
+      <li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li>
+      <li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li>
+      <li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="hero">
+      <div class="hero-tag">Interactive Visual Guide</div>
+      <h1 class="hero-title">How <span>Machine Learning</span><br />is built from Mathematics</h1>
+      <p class="hero-desc">
+        A 19-chapter visual journey through Linear Algebra, Statistics, Probability, and Calculus —
+        one story, one dataset, from raw data to a fully trained classifier.
+      </p>
+      <div class="hero-usecase">
+        <span style="margin-right:.4rem">🏦</span>
+        <span>One usecase, all 19 chapters: &nbsp;<strong>Should the bank approve this loan application?</strong></span>
+      </div>
+    </div>
+
+    <div class="prereq-note">
+      <strong>No prior ML knowledge needed.</strong>
+      Each chapter builds on the last. If you want to practice the row operations yourself,
+      visit the <a href="./ref-practice.html">REF Practice tool ↗</a> alongside this guide.
+    </div>
+
+    <h2 class="section-heading" style="margin-top:0">Act 1 — Linear Algebra (Ch 1–7)</h2>
+    <p class="section-sub" style="margin-bottom:1rem">Structure loan data as matrices, make predictions, and solve for optimal parameters.</p>
+
+    <div class="chapters-grid">
+
+      <a href="./chapter1.html" class="chapter-card">
+        <div class="ch-num">Chapter 1 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Start here</span></div>
+        <div class="ch-title">Data as a Matrix</div>
+        <div class="ch-desc">
+          Our 5 loan applicants (income, age) become feature matrix <strong style="color:var(--accent)">X</strong>
+          and target vector <strong style="color:var(--gold)">y</strong> (defaulted / repaid).
+          See why every row is a data point and every column is a feature.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">data table</span>
+          <span class="ch-tag">X matrix</span>
+          <span class="ch-tag">bias column</span>
+          <span class="ch-tag">augmented form</span>
+        </div>
+      </a>
+
+      <a href="./chapter2.html" class="chapter-card">
+        <div class="ch-num">Chapter 2 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Builds on Ch 1</span></div>
+        <div class="ch-title">What ML is Trying to Do</div>
+        <div class="ch-desc">
+          Plot income vs default (0/1). Drag a line to fit the data and watch the error change live.
+          ML's entire goal is to find the θ that minimises total error.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">scatter plot</span>
+          <span class="ch-tag">residuals</span>
+          <span class="ch-tag">least squares</span>
+          <span class="ch-tag">interactive</span>
+        </div>
+      </a>
+
+      <a href="./chapter3.html" class="chapter-card">
+        <div class="ch-num">Chapter 3 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Builds on Ch 2</span></div>
+        <div class="ch-title">Prediction = Matrix Multiplication</div>
+        <div class="ch-desc">
+          We know ML minimises error — but how is a single prediction computed?
+          Step through <strong style="color:var(--text)">ŷ = Xθ</strong> applicant by applicant as a dot product.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">Xθ = ŷ</span>
+          <span class="ch-tag">dot product</span>
+          <span class="ch-tag">step-by-step</span>
+          <span class="ch-tag">animated</span>
+        </div>
+      </a>
+
+      <a href="./chapter4.html" class="chapter-card">
+        <div class="ch-num">Chapter 4 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Builds on Ch 3</span></div>
+        <div class="ch-title">Solving with the Normal Equation</div>
+        <div class="ch-desc">
+          We can compute predictions — now find the optimal θ automatically.
+          Derive <strong style="color:var(--text)">θ = (XᵀX)⁻¹Xᵀy</strong> and solve for optimal θ on loan applicant data.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">Normal Equation</span>
+          <span class="ch-tag">XᵀX</span>
+          <span class="ch-tag">REF / RREF</span>
+          <span class="ch-tag">rank &amp; singularity</span>
+        </div>
+      </a>
+
+      <a href="./chapter5.html" class="chapter-card">
+        <div class="ch-num">Chapter 5 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Builds on Ch 4</span></div>
+        <div class="ch-title">Rank &amp; Linear Dependence</div>
+        <div class="ch-desc">
+          What if income and age are highly correlated? Drag a slider to make XᵀX singular and
+          break the Ch 4 solver. See exactly why it fails and how regularisation rescues it.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">rank</span>
+          <span class="ch-tag">correlation</span>
+          <span class="ch-tag">singularity</span>
+          <span class="ch-tag">ridge regression</span>
+        </div>
+      </a>
+
+      <a href="./chapter6.html" class="chapter-card">
+        <div class="ch-num">Chapter 6 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Builds on Ch 4 &amp; 5</span></div>
+        <div class="ch-title">Gradient Descent</div>
+        <div class="ch-desc">
+          Matrix inversion (Ch 4) is too slow at scale and breaks when features correlate (Ch 5).
+          Watch gradient descent find the same θ by rolling down the loss surface — no inversion needed.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">loss surface</span>
+          <span class="ch-tag">learning rate</span>
+          <span class="ch-tag">∇L</span>
+          <span class="ch-tag">animated</span>
+        </div>
+      </a>
+
+      <a href="./chapter7.html" class="chapter-card">
+        <div class="ch-num">Chapter 7 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Builds on Ch 5</span></div>
+        <div class="ch-title">PCA — Finding the Best Axes</div>
+        <div class="ch-desc">
+          Income and age overlap (Ch 5). PCA compresses them into one axis using eigenvectors of XᵀX.
+          Step through centring → covariance → eigenvectors → 2D→1D projection.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">eigenvectors</span>
+          <span class="ch-tag">covariance</span>
+          <span class="ch-tag">dimensionality reduction</span>
+          <span class="ch-tag">animated</span>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- ── Act 2: Statistics ──────────────────────────────────── -->
+    <h2 class="section-heading" style="margin-top:2rem">Act 2 — Statistics (Ch 8–10)</h2>
+    <p class="section-sub" style="margin-bottom:1rem">We understand the loan dataset with descriptive statistics before modelling.</p>
+    <div class="chapters-grid">
+
+      <a href="./chapter8.html" class="chapter-card">
+        <div class="ch-num">Chapter 8 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Builds on Ch 1</span></div>
+        <div class="ch-title">Meet the Loan Data</div>
+        <div class="ch-desc">
+          The same dataset from Ch 1, now explored statistically. Income, age, and debt distributions
+          for defaulters vs repayers — histograms and summary statistics.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">histograms</span><span class="ch-tag">mean/std</span><span class="ch-tag">distributions</span>
+        </div>
+      </a>
+
+      <a href="./chapter9.html" class="chapter-card">
+        <div class="ch-num">Chapter 9 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Builds on Ch 8</span></div>
+        <div class="ch-title">Which Features Predict Default?</div>
+        <div class="ch-desc">
+          Scatter plots and Pearson correlation show which features separate defaulters from repayers.
+          A full feature–feature correlation heatmap connects back to Ch 5's multicollinearity.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">correlation</span><span class="ch-tag">scatter plots</span><span class="ch-tag">heatmap</span>
+        </div>
+      </a>
+
+      <a href="./chapter10.html" class="chapter-card">
+        <div class="ch-num">Chapter 10 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Builds on Ch 8</span></div>
+        <div class="ch-title">The Normal Distribution</div>
+        <div class="ch-desc">
+          Interactive bell curve with μ and σ sliders. Z-scores for all 8 applicants.
+          The 68–95–99.7 rule. Why normalising features matters for gradient descent.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">bell curve</span><span class="ch-tag">z-score</span><span class="ch-tag">normalisation</span>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- ── Act 3: Probability ─────────────────────────────────── -->
+    <h2 class="section-heading" style="margin-top:2rem">Act 3 — Probability (Ch 11–13)</h2>
+    <p class="section-sub" style="margin-bottom:1rem">Turn the linear model into a probability. Define how to measure its quality.</p>
+    <div class="chapters-grid">
+
+      <a href="./chapter11.html" class="chapter-card">
+        <div class="ch-num">Chapter 11 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Builds on Ch 3</span></div>
+        <div class="ch-title">From Scores to Probabilities</div>
+        <div class="ch-desc">
+          Apply the sigmoid function to Xθ to get P(default) ∈ [0,1].
+          Interactive curve with θ sliders, live predictions for all 8 applicants.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">sigmoid</span><span class="ch-tag">logistic regression</span><span class="ch-tag">probability</span>
+        </div>
+      </a>
+
+      <a href="./chapter12.html" class="chapter-card">
+        <div class="ch-num">Chapter 12 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Builds on Ch 11</span></div>
+        <div class="ch-title">Maximum Likelihood</div>
+        <div class="ch-desc">
+          Which θ makes our observed outcomes most probable?
+          Watch the log-likelihood curve as θ₁ changes. Per-applicant likelihood bars.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">MLE</span><span class="ch-tag">log-likelihood</span><span class="ch-tag">interactive</span>
+        </div>
+      </a>
+
+      <a href="./chapter13.html" class="chapter-card">
+        <div class="ch-num">Chapter 13 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Builds on Ch 12</span></div>
+        <div class="ch-title">Cross-Entropy Loss</div>
+        <div class="ch-desc">
+          Why SSR fails for classification. Visualise −log(p) penalty.
+          Total cross-entropy loss curve as θ₁ varies — the surface we'll descend in Ch 16.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">cross-entropy</span><span class="ch-tag">loss function</span><span class="ch-tag">-log(p)</span>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- ── Act 4: Calculus ────────────────────────────────────── -->
+    <h2 class="section-heading" style="margin-top:2rem">Act 4 — Calculus (Ch 14–16)</h2>
+    <p class="section-sub" style="margin-bottom:1rem">Differentiate the loss. Walk downhill to find the optimal θ for our loan model.</p>
+    <div class="chapters-grid">
+
+      <a href="./chapter14.html" class="chapter-card">
+        <div class="ch-num">Chapter 14 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Builds on Ch 13</span></div>
+        <div class="ch-title">Derivatives — Slope of the Loss</div>
+        <div class="ch-desc">
+          Animated tangent line on the cross-entropy loss curve. Chain rule derivation.
+          dL/dθ tells us which direction reduces the loss — and by how much.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">derivative</span><span class="ch-tag">chain rule</span><span class="ch-tag">tangent line</span>
+        </div>
+      </a>
+
+      <a href="./chapter15.html" class="chapter-card">
+        <div class="ch-num">Chapter 15 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Builds on Ch 14</span></div>
+        <div class="ch-title">Partial Derivatives &amp; The Gradient</div>
+        <div class="ch-desc">
+          Click anywhere on the loss contour map (θ₀, θ₁) to see the gradient vector.
+          The gold arrow shows uphill — gradient descent steps the opposite way.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">gradient</span><span class="ch-tag">contour map</span><span class="ch-tag">∇L</span>
+        </div>
+      </a>
+
+      <a href="./chapter16.html" class="chapter-card">
+        <div class="ch-num">Chapter 16 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Builds on Ch 15</span></div>
+        <div class="ch-title">Gradient Descent for Classification</div>
+        <div class="ch-desc">
+          Watch the training path trace across the loss surface. Pause, step, or reset.
+          The converged θ is your trained logistic regression loan model.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">training</span><span class="ch-tag">convergence</span><span class="ch-tag">animated</span>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- ── Act 5: Evaluation ──────────────────────────────────── -->
+    <h2 class="section-heading" style="margin-top:2rem">Act 5 — Evaluation (Ch 17–19)</h2>
+    <p class="section-sub" style="margin-bottom:1rem">The model is trained. Now — how good is it, and can we trust it?</p>
+    <div class="chapters-grid">
+
+      <a href="./chapter17.html" class="chapter-card">
+        <div class="ch-num">Chapter 17 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Builds on Ch 16</span></div>
+        <div class="ch-title">Confusion Matrix &amp; Metrics</div>
+        <div class="ch-desc">
+          Interactive threshold slider → live confusion matrix + accuracy, precision, recall, F1.
+          For loans: missed defaults cost more than false alarms.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">TP/FP/TN/FN</span><span class="ch-tag">recall</span><span class="ch-tag">F1</span>
+        </div>
+      </a>
+
+      <a href="./chapter18.html" class="chapter-card">
+        <div class="ch-num">Chapter 18 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Builds on Ch 17</span></div>
+        <div class="ch-title">ROC Curve &amp; AUC</div>
+        <div class="ch-desc">
+          Drag the threshold and watch the ROC curve dot move. AUC = probability that a
+          defaulter is ranked higher than a repayer. Threshold-independent model quality.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">ROC</span><span class="ch-tag">AUC</span><span class="ch-tag">TPR vs FPR</span>
+        </div>
+      </a>
+
+      <a href="./chapter19.html" class="chapter-card">
+        <div class="ch-num">Chapter 19 &nbsp;<span style="font-size:.7rem;color:var(--muted);font-weight:400">Final chapter</span></div>
+        <div class="ch-title">Bias-Variance Tradeoff</div>
+        <div class="ch-desc">
+          Drag complexity from 1 to 20. Watch train error fall and test error rise.
+          The course ends with the full 19-chapter summary table.
+        </div>
+        <div class="ch-tags">
+          <span class="ch-tag">underfitting</span><span class="ch-tag">overfitting</span><span class="ch-tag">generalisation</span>
+        </div>
+      </a>
+
+    </div>
+
+    <div class="insight" style="margin-top:2rem;border-color:var(--accent)">
+      <strong>One story, one dataset, 19 chapters:</strong>
+      Loan applicant data → feature matrix (Ch 1–3) → solve for θ (Ch 4–6) → compress features (Ch 7)
+      → understand distributions (Ch 8–10) → build a probability model (Ch 11–13)
+      → train with calculus (Ch 14–16) → evaluate and improve (Ch 17–19).
+      Every step is a single interactive page. Read in order for the complete picture.
+    </div>
+  </div>
+</body>
+</html>

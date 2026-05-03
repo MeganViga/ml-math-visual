@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chapter 2 — What ML is Trying to Do | Math for ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .scatter-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 580px;
+    }
+    #scatter-svg {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #0a0f18;
+      display: block;
+      cursor: ns-resize;
+      touch-action: none;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin: 1rem 0;
+    }
+    .stat-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.9rem;
+      text-align: center;
+    }
+    .stat-val {
+      font-family: var(--mono);
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .stat-val.bad { color: var(--danger); }
+    .stat-val.good { color: var(--green); }
+    .stat-lbl {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: 0.2rem;
+    }
+
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      margin: 1rem 0;
+    }
+    .slider-row-ctrl {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+    .slider-row-ctrl label {
+      font-size: 0.82rem;
+      color: var(--muted);
+      width: 9rem;
+      flex-shrink: 0;
+    }
+    .slider-row-ctrl input[type=range] {
+      flex: 1;
+      accent-color: var(--accent);
+    }
+    .slider-row-ctrl .val-badge {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      color: var(--text);
+      min-width: 5rem;
+      text-align: right;
+    }
+
+    .ssr-bar-wrap {
+      background: var(--surface2);
+      border-radius: 4px;
+      height: 8px;
+      margin-top: 0.3rem;
+      overflow: hidden;
+    }
+    .ssr-bar {
+      height: 100%;
+      background: var(--danger);
+      border-radius: 4px;
+      transition: width 0.1s;
+    }
+  </style>
+</head>
+<body>
+    <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li>
+      <li><a href="./chapter2.html" class="active">2</a></li>
+      <li><a href="./chapter3.html">3</a></li>
+      <li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li>
+      <li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li>
+      <li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li>
+      <li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li>
+      <li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li>
+      <li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="chapter-hero">
+      <div class="chapter-eyebrow">Chapter 2 of 19</div>
+      <h1 class="chapter-title">What ML is Trying to Do</h1>
+      <p class="chapter-intro">
+        In Ch 1 we structured our loan applicant data as matrix X and target y.
+        Now: what does the ML algorithm actually <em>do</em> with it?
+        It finds the line that best separates defaulters (1) from repayers (0) by minimising prediction error.
+        Drag the sliders and see this goal in action — and notice a limitation we'll fix later.
+      </p>
+    </div>
+
+    <!-- ── Scatter plot ─────────────────────────────────────────── -->
+    <h2 class="section-heading">The data — Income vs Default</h2>
+    <p class="section-sub">
+      Each dot is one applicant. X-axis = income ($k), Y-axis = default label (1 = defaulted, 0 = repaid).
+      The <strong style="color:var(--accent)">blue line</strong> is our model's prediction.
+      Drag the sliders to move the line and watch the error change.
+    </p>
+
+    <div class="scatter-wrap">
+      <svg id="scatter-svg" viewBox="0 0 560 380" aria-label="Scatter plot of income vs default"></svg>
+    </div>
+
+    <div class="legend" style="margin-top:.6rem">
+      <span><span class="legend-dot" style="background:#f87171"></span>Defaulted (y=1)</span>
+      <span><span class="legend-dot" style="background:#4ade80"></span>Repaid (y=0)</span>
+      <span><span class="legend-dot" style="background:var(--accent);border-radius:0;height:3px;width:18px;vertical-align:middle"></span>Your line (ŷ = θ₀ + θ₁·income)</span>
+      <span><span class="legend-dot" style="background:var(--danger);border-radius:0;height:2px;width:14px;vertical-align:middle"></span>Residuals</span>
+    </div>
+
+    <!-- ── Sliders ──────────────────────────────────────────────── -->
+    <div class="card" style="margin-top:1rem">
+      <div class="card-title">Adjust the line parameters</div>
+      <div class="slider-group">
+        <div class="slider-row-ctrl">
+          <label>θ₀ (intercept)</label>
+          <input type="range" id="sl-theta0" min="-2" max="3" value="1.5" step="0.05" />
+          <span class="val-badge" id="v-theta0">1.50</span>
+        </div>
+        <div class="slider-row-ctrl">
+          <label>θ₁ (income weight)</label>
+          <input type="range" id="sl-theta1" min="-0.05" max="0.01" value="-0.02" step="0.001" />
+          <span class="val-badge" id="v-theta1">−0.020</span>
+        </div>
+      </div>
+      <button class="btn btn-gold" id="btn-best-fit" style="margin-top:.5rem">★ Show best fit line</button>
+    </div>
+
+    <!-- ── Error stats ──────────────────────────────────────────── -->
+    <h2 class="section-heading">Prediction errors (residuals)</h2>
+    <p class="section-sub">
+      A <strong>residual</strong> is the difference between the actual label (0 or 1) and what our line predicts.
+      The vertical red lines on the plot show these errors.
+      ML minimises the <strong>Sum of Squared Residuals (SSR)</strong>.
+    </p>
+
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-val" id="stat-ssr">—</div>
+        <div class="stat-lbl">SSR</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="stat-rmse">—</div>
+        <div class="stat-lbl">RMSE</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="stat-r2">—</div>
+        <div class="stat-lbl">R² score</div>
+      </div>
+    </div>
+
+    <div style="margin:0.5rem 0 1rem">
+      <div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.3rem">SSR (lower = better)</div>
+      <div class="ssr-bar-wrap"><div class="ssr-bar" id="ssr-bar" style="width:50%"></div></div>
+    </div>
+
+    <div id="residual-table-wrap">
+      <table class="data-table" style="font-size:.82rem">
+        <thead>
+          <tr>
+            <th>Applicant</th>
+            <th style="color:var(--gold)">Actual (0/1)</th>
+            <th style="color:var(--accent)">Predicted (ŷ)</th>
+            <th style="color:var(--danger)">Error</th>
+            <th style="color:var(--danger)">Error²</th>
+          </tr>
+        </thead>
+        <tbody id="residual-body"></tbody>
+      </table>
+    </div>
+
+    <div class="insight" style="margin-top:1.5rem">
+      <strong>Why square the errors?</strong>
+      Squaring makes all errors positive (so negative and positive errors don't cancel),
+      and penalises large errors more heavily. The line that minimises SSR is the
+      <em>Ordinary Least Squares</em> solution — the foundation of linear regression.
+    </div>
+
+    <!-- ── What the line represents ───────────────────────────── -->
+    <h2 class="section-heading">What the line actually is</h2>
+    <div class="card">
+      <p style="font-size:.9rem;color:var(--muted);margin-bottom:.8rem">
+        The line is the equation: &nbsp;
+        <code id="line-eq">ŷ = 1.50 − 0.020 · income</code>
+      </p>
+      <p style="font-size:.88rem;color:var(--muted)">
+        θ₀ (intercept) is the baseline risk score.<br/>
+        θ₁ (slope) says: "each extra $k of income decreases the predicted default score by θ₁."
+      </p>
+    </div>
+
+    <div class="insight" style="border-color:var(--danger)">
+      <strong>⚠ Spot the problem:</strong>
+      The line can predict values &gt; 1 (impossible for a probability) or &lt; 0.
+      For a 0/1 target, a straight line is the wrong tool — we need something that stays in [0, 1].
+      That's exactly what the <strong>sigmoid function</strong> in Chapter 11 provides.
+    </div>
+
+    <div class="insight insight-gold">
+      <strong>The ML goal in one sentence:</strong>
+      Find the values of θ that make <code>SSR = Σ(yᵢ − ŷᵢ)²</code> as small as possible.
+      The next chapters show how linear algebra solves this exactly.
+    </div>
+
+    <div class="insight" style="border-color:var(--accent)">
+      <strong>Story so far:</strong>
+      ML's job is to find parameters θ that minimise prediction error. We've seen this visually.
+      <br/>
+      <strong>Next:</strong> How is a single prediction actually computed from X and θ? → Chapter 3
+    </div>
+
+    <div class="chapter-nav">
+      <a href="./chapter1.html" class="btn">← Chapter 1</a>
+      <a href="./chapter3.html" class="btn btn-primary">Chapter 3: Prediction = Matrix Multiplication →</a>
+    </div>
+  </div>
+
+  <script>
+    // ── Data ────────────────────────────────────────────────────
+    const houses = [
+      { size: 35,  price: 1 },
+      { size: 55,  price: 0 },
+      { size: 42,  price: 1 },
+      { size: 80,  price: 0 },
+      { size: 28,  price: 1 },
+    ];
+
+    // Best fit (OLS on this data: income vs default 0/1)
+    const BEST_THETA0 = 1.48;
+    const BEST_THETA1 = -0.021;
+
+    // ── SVG setup ────────────────────────────────────────────────
+    const svg = document.getElementById('scatter-svg');
+    const VW = 560, VH = 380;
+    const PAD = { l: 55, r: 20, t: 20, b: 45 };
+    const PW = VW - PAD.l - PAD.r;
+    const PH = VH - PAD.t - PAD.b;
+
+    const xMin = 20, xMax = 90;
+    const yMin = -0.4,  yMax = 1.5;
+    const sx = x => PAD.l + (x - xMin) / (xMax - xMin) * PW;
+    const sy = y => PAD.t + (1 - (y - yMin) / (yMax - yMin)) * PH;
+
+    function mkEl(tag, attrs = {}) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+      return el;
+    }
+
+    function drawBase() {
+      svg.replaceChildren();
+
+      // y=0 and y=1 reference lines
+      [0, 1].forEach(y => {
+        svg.appendChild(mkEl('line', { x1: PAD.l, y1: sy(y), x2: PAD.l + PW, y2: sy(y), stroke: y===0?'#2a4a30':'#4a2a30', 'stroke-width': 1.5, 'stroke-dasharray': '5 3' }));
+        const t = mkEl('text', { x: PAD.l - 6, y: sy(y) + 4, 'text-anchor': 'end', fill: y===0?'#4ade80':'#f87171', 'font-size': 11, 'font-family': 'IBM Plex Mono, monospace' });
+        t.textContent = y===0?'Repaid':'Default';
+        svg.appendChild(t);
+      });
+      [30, 40, 50, 60, 70, 80].forEach(x => {
+        svg.appendChild(mkEl('line', { x1: sx(x), y1: PAD.t, x2: sx(x), y2: PAD.t + PH, stroke: '#1d2d40', 'stroke-width': 1 }));
+        const t = mkEl('text', { x: sx(x), y: PAD.t + PH + 16, 'text-anchor': 'middle', fill: '#5a6a80', 'font-size': 11, 'font-family': 'IBM Plex Mono, monospace' });
+        t.textContent = x+'k';
+        svg.appendChild(t);
+      });
+
+      // axes
+      svg.appendChild(mkEl('line', { x1: PAD.l, y1: PAD.t, x2: PAD.l, y2: PAD.t + PH, stroke: '#3d4f66', 'stroke-width': 1.5 }));
+      svg.appendChild(mkEl('line', { x1: PAD.l, y1: PAD.t + PH, x2: PAD.l + PW, y2: PAD.t + PH, stroke: '#3d4f66', 'stroke-width': 1.5 }));
+
+      // axis labels
+      const xl = mkEl('text', { x: PAD.l + PW / 2, y: VH - 5, 'text-anchor': 'middle', fill: '#6b7c90', 'font-size': 12, 'font-family': 'IBM Plex Sans, sans-serif' });
+      xl.textContent = 'Income ($k)';
+      svg.appendChild(xl);
+      const yl = mkEl('text', { x: 12, y: PAD.t + PH / 2, 'text-anchor': 'middle', fill: '#6b7c90', 'font-size': 12, 'font-family': 'IBM Plex Sans, sans-serif', transform: `rotate(-90, 12, ${PAD.t + PH / 2})` });
+      yl.textContent = 'Default (0/1)';
+      svg.appendChild(yl);
+    }
+
+    let residualEls = [];
+    let lineEl = null;
+    let dotEls = [];
+
+    function render() {
+      const theta0 = parseFloat(document.getElementById('sl-theta0').value);
+      const theta1 = parseFloat(document.getElementById('sl-theta1').value);
+
+      // update badges
+      document.getElementById('v-theta0').textContent = theta0.toFixed(2);
+      document.getElementById('v-theta1').textContent = theta1.toFixed(3);
+      document.getElementById('line-eq').textContent =
+        `ŷ = ${theta0.toFixed(2)} + ${theta1.toFixed(3)} · income`;
+
+      drawBase();
+
+      const preds = houses.map(h => theta0 + theta1 * h.size);
+      const errors = houses.map((h, i) => h.price - preds[i]);
+      const ssr = errors.reduce((s, e) => s + e * e, 0);
+      const rmse = Math.sqrt(ssr / houses.length);
+      const meanY = houses.reduce((s, h) => s + h.price, 0) / houses.length;
+      const sst = houses.reduce((s, h) => s + (h.price - meanY) ** 2, 0);
+      const r2 = Math.max(0, 1 - ssr / sst);
+
+      // residual lines
+      houses.forEach((h, i) => {
+        const x = sx(h.size);
+        svg.appendChild(mkEl('line', {
+          x1: x, y1: sy(h.price), x2: x, y2: sy(preds[i]),
+          stroke: '#f87171', 'stroke-width': 1.5, 'stroke-dasharray': '4 2'
+        }));
+      });
+
+      // regression line
+      const x1 = xMin, x2 = xMax;
+      const y1l = theta0 + theta1 * x1, y2l = theta0 + theta1 * x2;
+      svg.appendChild(mkEl('line', {
+        x1: sx(x1), y1: sy(y1l), x2: sx(x2), y2: sy(y2l),
+        stroke: '#3b82f6', 'stroke-width': 2.5
+      }));
+
+      // data points — red for default, green for repaid
+      houses.forEach(h => {
+        const c = mkEl('circle', {
+          cx: sx(h.size), cy: sy(h.price), r: 8,
+          fill: h.price === 1 ? '#f87171' : '#4ade80',
+          stroke: '#0a0f18', 'stroke-width': 1.5
+        });
+        svg.appendChild(c);
+      });
+
+      // stats
+      document.getElementById('stat-ssr').textContent = ssr.toFixed(3);
+      document.getElementById('stat-rmse').textContent = rmse.toFixed(3);
+      const r2El = document.getElementById('stat-r2');
+      r2El.textContent = r2.toFixed(3);
+      r2El.className = 'stat-val ' + (r2 > 0.95 ? 'good' : r2 > 0.8 ? '' : 'bad');
+
+      const maxSsr = 3;
+      document.getElementById('ssr-bar').style.width = Math.min(100, (ssr / maxSsr) * 100) + '%';
+
+      // residual table
+      const tbody = document.getElementById('residual-body');
+      tbody.replaceChildren();
+      houses.forEach((h, i) => {
+        const tr = document.createElement('tr');
+        const e = errors[i];
+        tr.innerHTML = `
+          <td><input type="text" value="Person ${i+1}" readonly style="color:var(--muted)" /></td>
+          <td><input type="text" value="${h.price}" readonly style="color:var(--gold)" /></td>
+          <td><input type="text" value="${preds[i].toFixed(1)}" readonly style="color:var(--accent)" /></td>
+          <td><input type="text" value="${e.toFixed(1)}" readonly style="color:var(--danger)" /></td>
+          <td><input type="text" value="${(e*e).toFixed(1)}" readonly style="color:var(--danger)" /></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById('sl-theta0').addEventListener('input', render);
+    document.getElementById('sl-theta1').addEventListener('input', render);
+
+    document.getElementById('btn-best-fit').addEventListener('click', () => {
+      document.getElementById('sl-theta0').value = BEST_THETA0;
+      document.getElementById('sl-theta1').value = BEST_THETA1;
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chapter 19 — Bias-Variance Tradeoff | Math for ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .act-badge { display:inline-block; padding:.2rem .7rem; border-radius:20px; font-size:.72rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; border:1px solid #f472b6; color:#f472b6; margin-bottom:.6rem; }
+    canvas#bv-canvas { width:100%; height:280px; display:block; }
+    canvas#fit-canvas { width:100%; height:200px; display:block; }
+    .chart-wrap { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; }
+    .slider-row { display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin:.6rem 0; }
+    .slider-row label { font-size:.82rem; color:var(--muted); min-width:100px; }
+    .slider-row input[type=range] { flex:1; min-width:100px; }
+    .slider-val { font-family:var(--mono); color:var(--accent); min-width:50px; }
+    .three-col { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.8rem; }
+    @media(max-width:520px){ .three-col{grid-template-columns:1fr;} }
+    .regime-card { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:.8rem; }
+    .regime-title { font-size:.85rem; font-weight:600; margin-bottom:.4rem; }
+    .regime-body { font-size:.78rem; color:var(--muted); line-height:1.6; }
+    .big-table { width:100%; border-collapse:collapse; font-size:.83rem; }
+    .big-table th { background:var(--surface2); color:var(--muted); padding:.45rem .8rem; border:1px solid var(--border); font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; text-align:left; }
+    .big-table td { padding:.45rem .8rem; border:1px solid var(--border); }
+    .big-table tr:nth-child(even) td { background:rgba(255,255,255,.02); }
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li><li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html">3</a></li><li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li><li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li><li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li><li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li><li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li><li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html" class="active">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="chapter-hero">
+      <div class="act-badge">Act 5 · Evaluation</div>
+      <div class="chapter-eyebrow">Chapter 19 of 19</div>
+      <h1 class="chapter-title">Bias-Variance Tradeoff</h1>
+      <p class="chapter-intro">
+        We've built and evaluated our loan model. The final question is: what happens when we make
+        the model more complex — more features, higher-degree terms? It fits training data better,
+        but does it generalise? The <strong>bias-variance tradeoff</strong> is the fundamental
+        tension in all of machine learning.
+      </p>
+    </div>
+
+    <!-- ── Three regimes ──────────────────────────────────────── -->
+    <h2 class="section-heading">Three regimes of model complexity</h2>
+    <div class="three-col">
+      <div class="regime-card">
+        <div class="regime-title" style="color:var(--accent)">Underfitting (High Bias)</div>
+        <div class="regime-body">
+          Model is too simple. Misses patterns even in training data. High train error + high test error.
+          <br/><em>e.g.</em> Always predict "approve" regardless of income.
+        </div>
+      </div>
+      <div class="regime-card" style="border-color:var(--green)">
+        <div class="regime-title" style="color:var(--green)">Just Right</div>
+        <div class="regime-body">
+          Model captures the true signal without noise. Low train error + low test error.
+          Train and test curves converge near a minimum.
+        </div>
+      </div>
+      <div class="regime-card">
+        <div class="regime-title" style="color:var(--danger)">Overfitting (High Variance)</div>
+        <div class="regime-body">
+          Model memorises training data including noise. Very low train error, high test error.
+          <br/><em>e.g.</em> Memorise all 8 applicants — fails on new ones.
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Bias-variance curves ────────────────────────────────── -->
+    <h2 class="section-heading">Train vs test error as complexity grows</h2>
+    <p class="section-sub">
+      Drag the complexity slider to see how training error (blue) and test error (gold) diverge.
+      The sweet spot is where test error is minimised.
+    </p>
+
+    <div class="chart-wrap">
+      <canvas id="bv-canvas" width="800" height="280"></canvas>
+      <div class="slider-row">
+        <label>Model complexity</label>
+        <input type="range" id="sl-c" min="1" max="20" value="1" step="1" />
+        <span class="slider-val" id="val-c">1</span>
+      </div>
+      <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-top:.6rem;padding:.6rem .9rem;background:var(--surface);border-radius:var(--radius-sm);font-size:.85rem">
+        <span><span style="color:#3b82f6">●</span> Train error: <strong style="font-family:var(--mono);color:#3b82f6" id="train-err">–</strong></span>
+        <span><span style="color:#c9a45c">●</span> Test error: <strong style="font-family:var(--mono);color:#c9a45c" id="test-err">–</strong></span>
+        <span id="regime-label" style="color:var(--muted)"></span>
+      </div>
+    </div>
+
+    <!-- ── Fit visualisation ──────────────────────────────────── -->
+    <h2 class="section-heading">How the model fits the loan data</h2>
+    <p class="section-sub">
+      Same complexity slider — see how the decision boundary changes from a straight line
+      to a wildly fitting curve that memorises every training point.
+    </p>
+    <div class="chart-wrap">
+      <canvas id="fit-canvas" width="800" height="200"></canvas>
+    </div>
+
+    <!-- ── Full course summary ────────────────────────────────── -->
+    <h2 class="section-heading" style="margin-top:2rem">The complete 19-chapter journey</h2>
+    <div class="card">
+      <table class="big-table">
+        <thead>
+          <tr><th>Act</th><th>Chapters</th><th>Topic</th><th>In our loan story</th></tr>
+        </thead>
+        <tbody>
+          <tr><td style="color:var(--accent)">Linear Algebra</td><td style="font-family:var(--mono)">1–7</td><td>Matrices, prediction, solving Xθ=y, rank, GD, PCA</td><td style="color:var(--muted)">House price model end-to-end</td></tr>
+          <tr><td style="color:var(--gold)">Statistics</td><td style="font-family:var(--mono)">8–10</td><td>Distributions, correlation, Normal distribution</td><td style="color:var(--muted)">Explored loan applicant data</td></tr>
+          <tr><td style="color:#a78bfa">Probability</td><td style="font-family:var(--mono)">11–13</td><td>Sigmoid, MLE, cross-entropy loss</td><td style="color:var(--muted)">Turned scores into P(default)</td></tr>
+          <tr><td style="color:var(--green)">Calculus</td><td style="font-family:var(--mono)">14–16</td><td>Derivatives, gradient, gradient descent</td><td style="color:var(--muted)">Trained the logistic regression model</td></tr>
+          <tr><td style="color:#f472b6">Evaluation</td><td style="font-family:var(--mono)">17–19</td><td>Confusion matrix, ROC/AUC, bias-variance</td><td style="color:var(--muted)">Measured and understood model quality</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="insight insight-gold" style="margin-top:1.5rem">
+      <strong>The answer to "should I approve this loan?":</strong>
+      We packed applicant data into matrix X (Ch 1), found the loss-minimising θ via gradient descent
+      (Ch 16), and now output P(default) for any new applicant. If P &gt; threshold (Ch 17), decline.
+      Every step was powered by linear algebra, statistics, probability, and calculus working together.
+    </div>
+
+    <div class="insight" style="border-color:var(--green)">
+      <strong>You've completed the full course.</strong>
+      From a table of house prices to a production loan approval model — 19 chapters,
+      four branches of mathematics, one coherent story.
+      Want to practise the linear algebra yourself? → REF Practice tool
+    </div>
+
+    <div class="chapter-nav">
+      <a href="./chapter18.html" class="btn">← Chapter 18</a>
+      <a href="./index.html" class="btn">Back to Home</a>
+      <a href="./ref-practice.html" class="btn btn-primary">REF Practice ↗</a>
+    </div>
+  </div>
+
+  <script>
+    // ── Bias-variance curve ────────────────────────────────────
+    function trainErr(c){ return Math.max(0.02, 0.65 * Math.exp(-0.25*c)); }
+    function testErr(c){
+      if(c<=7) return 0.72 - 0.07*c + 0.005*c*c;
+      return 0.72 - 0.07*7 + 0.005*49 + 0.015*(c-7)*(c-7)*0.5;
+    }
+    const optC = 6;
+
+    const bvCanvas=document.getElementById('bv-canvas');
+    const bvCtx=bvCanvas.getContext('2d');
+
+    function drawBV(complexity){
+      const W=bvCanvas.width, H=bvCanvas.height;
+      const padL=50, padR=20, padT=20, padB=40;
+      bvCtx.clearRect(0,0,W,H);
+      const maxC=20, maxE=0.8;
+      const sx=v=>padL+v/maxC*(W-padL-padR);
+      const sy=v=>H-padB-v/maxE*(H-padT-padB);
+
+      // Grid
+      [0,.2,.4,.6,.8].forEach(ev=>{
+        bvCtx.strokeStyle='#1c2533'; bvCtx.lineWidth=1;
+        bvCtx.beginPath(); bvCtx.moveTo(padL,sy(ev)); bvCtx.lineTo(W-padR,sy(ev)); bvCtx.stroke();
+        bvCtx.fillStyle='#6b7c90'; bvCtx.font='9px IBM Plex Mono'; bvCtx.textAlign='right';
+        bvCtx.fillText(ev.toFixed(1), padL-3, sy(ev)+3);
+      });
+
+      // Sweet spot
+      bvCtx.strokeStyle='rgba(74,222,128,0.3)'; bvCtx.lineWidth=1.5; bvCtx.setLineDash([4,3]);
+      bvCtx.beginPath(); bvCtx.moveTo(sx(optC),padT); bvCtx.lineTo(sx(optC),H-padB); bvCtx.stroke();
+      bvCtx.setLineDash([]);
+      bvCtx.fillStyle='rgba(74,222,128,0.5)'; bvCtx.font='10px IBM Plex Sans'; bvCtx.textAlign='center';
+      bvCtx.fillText('sweet spot', sx(optC), padT+12);
+
+      // Test error curve
+      bvCtx.strokeStyle='#c9a45c'; bvCtx.lineWidth=2.5;
+      bvCtx.beginPath();
+      for(let c=0;c<=maxC;c+=0.1){
+        const x=sx(c), y=sy(testErr(c));
+        c===0?bvCtx.moveTo(x,y):bvCtx.lineTo(x,y);
+      }
+      bvCtx.stroke();
+
+      // Train error curve
+      bvCtx.strokeStyle='#3b82f6'; bvCtx.lineWidth=2.5;
+      bvCtx.beginPath();
+      for(let c=0;c<=maxC;c+=0.1){
+        const x=sx(c), y=sy(trainErr(c));
+        c===0?bvCtx.moveTo(x,y):bvCtx.lineTo(x,y);
+      }
+      bvCtx.stroke();
+
+      // Current point
+      [[trainErr(complexity),'#3b82f6'],[testErr(complexity),'#c9a45c']].forEach(([e,col])=>{
+        bvCtx.beginPath(); bvCtx.arc(sx(complexity),sy(e),7,0,Math.PI*2);
+        bvCtx.fillStyle=col; bvCtx.strokeStyle='#fff'; bvCtx.lineWidth=2; bvCtx.fill(); bvCtx.stroke();
+      });
+
+      // Axes
+      bvCtx.strokeStyle='#2a3a50'; bvCtx.lineWidth=1;
+      bvCtx.beginPath(); bvCtx.moveTo(padL,padT); bvCtx.lineTo(padL,H-padB); bvCtx.lineTo(W-padR,H-padB); bvCtx.stroke();
+      bvCtx.fillStyle='#6b7c90'; bvCtx.font='11px IBM Plex Sans'; bvCtx.textAlign='center';
+      bvCtx.fillText('Model Complexity', W/2, H-4);
+      bvCtx.save(); bvCtx.translate(14,H/2); bvCtx.rotate(-Math.PI/2); bvCtx.fillText('Error', 0,0); bvCtx.restore();
+
+      // X labels
+      [1,5,10,15,20].forEach(v=>{
+        bvCtx.fillStyle='#6b7c90'; bvCtx.font='9px IBM Plex Mono'; bvCtx.textAlign='center';
+        bvCtx.fillText(v, sx(v), H-padB+14);
+      });
+
+      document.getElementById('train-err').textContent=trainErr(complexity).toFixed(3);
+      document.getElementById('test-err').textContent=testErr(complexity).toFixed(3);
+      const regime=complexity<4?'Underfitting (High Bias)':complexity>10?'Overfitting (High Variance)':'Good fit';
+      const color=complexity<4?'var(--accent)':complexity>10?'var(--danger)':'var(--green)';
+      document.getElementById('regime-label').innerHTML=`Regime: <strong style="color:${color}">${regime}</strong>`;
+    }
+
+    // ── Fit visualisation ──────────────────────────────────────
+    const fitCanvas=document.getElementById('fit-canvas');
+    const fitCtx=fitCanvas.getContext('2d');
+    const applicants=[
+      {income:35,y:1},{income:55,y:0},{income:42,y:1},{income:80,y:0},
+      {income:28,y:1},{income:65,y:0},{income:38,y:1},{income:72,y:0}
+    ];
+
+    function drawFit(complexity){
+      const W=fitCanvas.width, H=fitCanvas.height;
+      const pad=30;
+      fitCtx.clearRect(0,0,W,H);
+      const incMin=20, incMax=90;
+      const sx=v=>pad+(v-incMin)/(incMax-incMin)*(W-2*pad);
+
+      // Decision boundary (simplified: a sigmoid-like curve shifted by complexity)
+      function boundary(inc, c){
+        const base=-2.8+0.055*inc;
+        const noise=c>6?(Math.sin(inc*c*0.1)*0.8*(c-6)/14):0;
+        return 1/(1+Math.exp(-(base+noise)));
+      }
+
+      // Shade regions
+      for(let x=pad;x<W-pad;x++){
+        const inc=incMin+(x-pad)/(W-2*pad)*(incMax-incMin);
+        const p=boundary(inc,complexity);
+        fitCtx.fillStyle=p>=0.5?'rgba(248,113,113,.08)':'rgba(74,222,128,.06)';
+        fitCtx.fillRect(x,pad,1,H-2*pad);
+      }
+
+      // Decision boundary line at p=0.5
+      fitCtx.strokeStyle='rgba(255,255,255,0.4)'; fitCtx.lineWidth=1.5; fitCtx.setLineDash([4,3]);
+      fitCtx.beginPath();
+      for(let x=pad;x<W-pad;x++){
+        const inc=incMin+(x-pad)/(W-2*pad)*(incMax-incMin);
+        const p=boundary(inc,complexity);
+        const pPrev=x===pad?p:boundary(incMin+(x-1-pad)/(W-2*pad)*(incMax-incMin),complexity);
+        if((p>=0.5)!==(pPrev>=0.5)){
+          fitCtx.lineTo(x,pad); fitCtx.lineTo(x,H-pad);
+        }
+      }
+      fitCtx.stroke(); fitCtx.setLineDash([]);
+
+      // Data points
+      applicants.forEach(a=>{
+        const cx=sx(a.income);
+        const cy=H/2+(a.y===1?-30:30)+(Math.random()-0.5)*10;
+        fitCtx.beginPath(); fitCtx.arc(cx,H/2+(a.y===1?-H/4:H/4),7,0,Math.PI*2);
+        fitCtx.fillStyle=a.y===1?'#f87171':'#4ade80';
+        fitCtx.strokeStyle='#0a0f18'; fitCtx.lineWidth=1.5; fitCtx.fill(); fitCtx.stroke();
+      });
+
+      // Axes
+      fitCtx.strokeStyle='#2a3a50'; fitCtx.lineWidth=1;
+      fitCtx.beginPath(); fitCtx.moveTo(pad,pad); fitCtx.lineTo(pad,H-pad); fitCtx.lineTo(W-pad,H-pad); fitCtx.stroke();
+      fitCtx.fillStyle='#6b7c90'; fitCtx.font='10px IBM Plex Sans'; fitCtx.textAlign='center';
+      fitCtx.fillText('Income', W/2, H-4);
+      fitCtx.fillText('▲ Default zone', W*0.75, pad+18);
+      fitCtx.fillText('▼ Approve zone', W*0.25, H-pad-8);
+    }
+
+    function update(){
+      const c=parseInt(document.getElementById('sl-c').value);
+      document.getElementById('val-c').textContent=c;
+      drawBV(c);
+      drawFit(c);
+    }
+    document.getElementById('sl-c').addEventListener('input',update);
+    update();
+  </script>
+</body>
+</html>

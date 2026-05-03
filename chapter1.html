@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chapter 1 — Data as a Matrix | Math for ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .col-header-bias   { color: var(--muted); }
+    .col-header-feat   { color: var(--accent); }
+    .col-header-target { color: var(--gold); }
+
+    .arrow-anim {
+      font-size: 1.8rem;
+      color: var(--accent);
+      text-align: center;
+      margin: 0.8rem 0;
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+    .arrow-anim.visible { opacity: 1; }
+
+    .matrix-output {
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.5s, transform 0.5s;
+    }
+    .matrix-output.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .col-legend {
+      display: flex;
+      gap: 1.2rem;
+      flex-wrap: wrap;
+      font-size: 0.8rem;
+      margin-bottom: 1rem;
+    }
+    .col-legend-item { display: flex; align-items: center; gap: 0.4rem; }
+    .col-legend-swatch {
+      width: 12px; height: 12px;
+      border-radius: 3px;
+    }
+
+    .table-note {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.4rem;
+    }
+
+    .equation-display {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.2rem 1.5rem;
+      margin: 1rem 0;
+      font-family: var(--mono);
+      font-size: 0.92rem;
+      overflow-x: auto;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    @media (max-width: 640px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    .pulse {
+      animation: pulse 1s ease-in-out 2;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+  </style>
+</head>
+<body>
+    <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html" class="active">1</a></li>
+      <li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html">3</a></li>
+      <li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li>
+      <li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li>
+      <li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li>
+      <li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li>
+      <li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li>
+      <li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="chapter-hero">
+      <div class="chapter-eyebrow">Chapter 1 of 19</div>
+      <h1 class="chapter-title">Data as a Matrix</h1>
+      <p class="chapter-intro">
+        A bank wants to know: <strong>will this loan applicant default?</strong>
+        They have records of past applicants — income, age, debt ratio — and whether each person repaid or defaulted.
+        Before any ML algorithm can run, this raw table must become a matrix.
+        This chapter shows exactly how and why.
+      </p>
+    </div>
+
+    <!-- ── Section 1: The raw data ─────────────────────────────── -->
+    <h2 class="section-heading">Our dataset — loan applicants</h2>
+    <p class="section-sub">
+      We have 5 past loan applicants. For each person we know their
+      <strong style="color:var(--accent)">income</strong> ($k),
+      <strong style="color:var(--accent)">age</strong>, and whether they
+      <strong style="color:var(--gold)">defaulted</strong> (1 = defaulted, 0 = repaid).
+      This is our training data.
+    </p>
+
+    <div class="card">
+      <div class="card-title">Raw data table</div>
+      <p class="card-sub">You can edit the values. The matrices below will update automatically.</p>
+      <div class="data-table-wrap">
+        <table class="data-table" id="data-table">
+          <thead>
+            <tr>
+              <th class="col-header-bias"># (applicant)</th>
+              <th class="col-header-feat">Income ($k)</th>
+              <th class="col-header-feat">Age</th>
+              <th class="col-header-target">Default (0/1)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><input type="text" value="Person 1" readonly style="color:var(--muted);width:5rem" /></td>
+              <td><input type="number" class="feat-size" value="35" /></td>
+              <td><input type="number" class="feat-rooms" value="28" /></td>
+              <td><input type="number" class="target-price" value="1" /></td>
+            </tr>
+            <tr>
+              <td><input type="text" value="Person 2" readonly style="color:var(--muted);width:5rem" /></td>
+              <td><input type="number" class="feat-size" value="55" /></td>
+              <td><input type="number" class="feat-rooms" value="45" /></td>
+              <td><input type="number" class="target-price" value="0" /></td>
+            </tr>
+            <tr>
+              <td><input type="text" value="Person 3" readonly style="color:var(--muted);width:5rem" /></td>
+              <td><input type="number" class="feat-size" value="42" /></td>
+              <td><input type="number" class="feat-rooms" value="32" /></td>
+              <td><input type="number" class="target-price" value="1" /></td>
+            </tr>
+            <tr>
+              <td><input type="text" value="Person 4" readonly style="color:var(--muted);width:5rem" /></td>
+              <td><input type="number" class="feat-size" value="80" /></td>
+              <td><input type="number" class="feat-rooms" value="52" /></td>
+              <td><input type="number" class="target-price" value="0" /></td>
+            </tr>
+            <tr>
+              <td><input type="text" value="Person 5" readonly style="color:var(--muted);width:5rem" /></td>
+              <td><input type="number" class="feat-size" value="28" /></td>
+              <td><input type="number" class="feat-rooms" value="24" /></td>
+              <td><input type="number" class="target-price" value="1" /></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-note">
+        <span style="color:var(--accent)">■</span> Blue = features (inputs to the model) &nbsp;|&nbsp;
+        <span style="color:var(--gold)">■</span> Gold = target (1 = defaulted, 0 = repaid)
+      </p>
+    </div>
+
+    <div class="insight">
+      <strong>Why a table?</strong>
+      In ML, every data point (loan applicant) is one <em>row</em>. Every property we measure (income, age)
+      is one <em>column</em>. This uniform structure is what lets us do matrix math on it.
+    </div>
+
+    <!-- ── Section 2: Building X ───────────────────────────────── -->
+    <h2 class="section-heading">Step 1 — Build the design matrix X</h2>
+    <p class="section-sub">
+      We take the feature columns (income, age) and prepend a column of 1s called the
+      <strong style="color:var(--muted)">bias column</strong>. This lets our model learn an intercept.
+    </p>
+
+    <div class="card">
+      <div class="card-title">Why add a column of 1s?</div>
+      <p style="font-size:.9rem;color:var(--muted);margin-bottom:.8rem">
+        Our prediction formula is: <code>score = θ₀·<span style="color:var(--muted)">1</span> + θ₁·income + θ₂·age</code>
+        <br/>
+        The θ₀ term is a constant — it has no feature multiplying it. By adding a column of 1s,
+        every term looks the same: feature × weight. This makes the matrix equation clean.
+      </p>
+      <div class="equation-display">
+        score = θ₀<span style="color:var(--muted)">·1</span> + θ₁·<span style="color:var(--accent)">income</span> + θ₂·<span style="color:var(--accent)">age</span>
+        &nbsp;&nbsp;→&nbsp;&nbsp;
+        [<span style="color:var(--muted)">1</span>, <span style="color:var(--accent)">income</span>, <span style="color:var(--accent)">age</span>] · [θ₀, θ₁, θ₂]ᵀ
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-build-x">▶ Build matrix X</button>
+      <button class="btn" id="btn-reset-x">Reset</button>
+    </div>
+
+    <div id="matrix-x-output" class="matrix-output" style="margin-top:1.2rem">
+      <div class="col-legend">
+        <div class="col-legend-item">
+          <div class="col-legend-swatch" style="background:var(--muted);opacity:0.6"></div>
+          <span style="color:var(--muted)">Bias (always 1)</span>
+        </div>
+        <div class="col-legend-item">
+          <div class="col-legend-swatch" style="background:var(--accent)"></div>
+          <span style="color:var(--accent)">Features (income, age)</span>
+        </div>
+      </div>
+
+      <p class="mat-label">X — Design matrix (5 × 3)</p>
+      <div class="matrix-equation">
+        <div class="mat-block">
+          <div class="mat-bracket">[</div>
+          <div class="mat-grid" id="mat-x" style="grid-template-columns: repeat(3, auto)">
+            <!-- filled by JS -->
+          </div>
+          <div class="mat-bracket">]</div>
+        </div>
+      </div>
+      <p style="font-size:.8rem;color:var(--muted);margin-top:.4rem">
+        5 rows = 5 applicants &nbsp;·&nbsp; 3 columns = bias + 2 features (income, age)
+      </p>
+    </div>
+
+    <!-- ── Section 3: The y vector ─────────────────────────────── -->
+    <h2 class="section-heading" style="margin-top:2rem">Step 2 — Extract the target vector y</h2>
+    <p class="section-sub">
+      The default column becomes a separate vector <strong style="color:var(--gold)">y</strong>.
+      Each entry is 1 (defaulted) or 0 (repaid) — this is what we're trying to predict.
+    </p>
+
+    <div id="matrix-y-output" class="matrix-output" style="margin-top:0.5rem">
+      <p class="mat-label">y — Target vector (5 × 1)</p>
+      <div class="matrix-equation">
+        <div class="mat-block">
+          <div class="mat-bracket">[</div>
+          <div class="mat-grid" id="mat-y" style="grid-template-columns: auto">
+            <!-- filled by JS -->
+          </div>
+          <div class="mat-bracket">]</div>
+        </div>
+      </div>
+      <p style="font-size:.8rem;color:var(--gold);margin-top:.4rem">
+        5 rows = 5 default labels (1 = defaulted, 0 = repaid)
+      </p>
+    </div>
+
+    <!-- ── Section 4: Augmented view ──────────────────────────── -->
+    <h2 class="section-heading" style="margin-top:2rem">Step 3 — The full picture: [X | y]</h2>
+    <p class="section-sub">
+      Combining them gives the <strong>augmented matrix</strong> — the same form used in
+      row reduction. The goal of ML is to find θ such that <code>Xθ ≈ y</code>.
+    </p>
+
+    <div id="matrix-aug-output" class="matrix-output">
+      <p class="mat-label">[X | y] — Augmented matrix (5 × 4)</p>
+      <div class="matrix-equation">
+        <div class="mat-block">
+          <div class="mat-bracket">[</div>
+          <div class="mat-grid" id="mat-aug" style="grid-template-columns: repeat(4, auto)">
+            <!-- filled by JS -->
+          </div>
+          <div class="mat-bracket">]</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="insight insight-gold" style="margin-top:1.5rem">
+      <strong>The ML problem in one line:</strong>
+      Find vector <strong>θ</strong> such that
+      <strong style="color:var(--accent)">X</strong><strong>θ</strong> ≈
+      <strong style="color:var(--gold)">y</strong>.
+      Every ML algorithm is a different strategy for solving this.
+    </div>
+
+    <!-- ── Section 5: Shape intuition ─────────────────────────── -->
+    <h2 class="section-heading">Matrix shapes — why they matter</h2>
+
+    <div class="card">
+      <div class="two-col">
+        <div>
+          <div class="mat-label">X shape: 5 × 3</div>
+          <ul style="font-size:.88rem;color:var(--muted);margin-top:.5rem;padding-left:1.2rem;line-height:2">
+            <li><strong style="color:var(--text)">5 rows</strong> = 5 training examples</li>
+            <li><strong style="color:var(--text)">3 columns</strong> = 3 parameters (bias + 2 features)</li>
+          </ul>
+        </div>
+        <div>
+          <div class="mat-label">y shape: 5 × 1</div>
+          <ul style="font-size:.88rem;color:var(--muted);margin-top:.5rem;padding-left:1.2rem;line-height:2">
+            <li><strong style="color:var(--text)">5 rows</strong> = one label per applicant</li>
+            <li><strong style="color:var(--text)">1 column</strong> = single output (0 or 1)</li>
+          </ul>
+        </div>
+      </div>
+      <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+        <div class="mat-label">θ shape: 3 × 1 (what we want to find)</div>
+        <p style="font-size:.88rem;color:var(--muted);margin-top:.3rem">
+          θ = [θ₀, θ₁, θ₂]ᵀ — three weights, one per column of X.
+          For Xθ to be valid: <strong style="color:var(--text)">(5×3) × (3×1) = (5×1)</strong> ✓
+        </p>
+      </div>
+    </div>
+
+    <div class="insight insight-green">
+      <strong>Scaling to real ML:</strong>
+      Real datasets have millions of rows (data points) and hundreds of columns (features).
+      The matrix structure is exactly the same — just larger. The math doesn't change.
+    </div>
+
+    <div class="insight" style="border-color:var(--accent)">
+      <strong>Story so far:</strong>
+      We have 5 loan applicants as feature matrix <strong>X</strong> (5×3: bias, income, age) and target vector <strong>y</strong> (5×1: default labels).
+      <br/>
+      <strong>Next:</strong> What is the ML algorithm trying to do with X and y? → Chapter 2
+    </div>
+
+    <!-- ── Nav ─────────────────────────────────────────────────── -->
+    <div class="chapter-nav">
+      <a href="./index.html" class="btn">← Back to Home</a>
+      <a href="./chapter2.html" class="btn btn-primary">Chapter 2: What ML is Trying to Do →</a>
+    </div>
+  </div>
+
+  <script>
+    const incomes  = () => [...document.querySelectorAll('.feat-size')].map(i => +i.value || 0);
+    const ages     = () => [...document.querySelectorAll('.feat-rooms')].map(i => +i.value || 0);
+    const defaults = () => [...document.querySelectorAll('.target-price')].map(i => +i.value || 0);
+    const n = 5;
+
+    function renderMatX() {
+      const inc = incomes(), age = ages();
+      const grid = document.getElementById('mat-x');
+      grid.replaceChildren();
+      for (let i = 0; i < n; i++) {
+        const c0 = cell('1', 'hl-bias');
+        const c1 = cell(inc[i], 'hl-feat');
+        const c2 = cell(age[i], 'hl-feat');
+        grid.append(c0, c1, c2);
+      }
+    }
+
+    function renderMatY() {
+      const d = defaults();
+      const grid = document.getElementById('mat-y');
+      grid.replaceChildren();
+      for (let i = 0; i < n; i++) {
+        grid.appendChild(cell(d[i], 'hl-target'));
+      }
+    }
+
+    function renderMatAug() {
+      const inc = incomes(), age = ages(), d = defaults();
+      const grid = document.getElementById('mat-aug');
+      grid.replaceChildren();
+      for (let i = 0; i < n; i++) {
+        grid.append(cell('1', 'hl-bias'), cell(inc[i], 'hl-feat'), cell(age[i], 'hl-feat'));
+        const tc = cell(d[i], 'hl-target');
+        tc.style.borderLeft = '2px solid var(--gold-dim)';
+        tc.style.paddingLeft = '0.5rem';
+        tc.style.marginLeft = '0.15rem';
+        grid.appendChild(tc);
+      }
+    }
+
+    function cell(val, cls) {
+      const span = document.createElement('span');
+      span.className = 'mat-cell ' + cls;
+      span.textContent = val;
+      return span;
+    }
+
+    let built = false;
+
+    document.getElementById('btn-build-x').addEventListener('click', () => {
+      renderMatX();
+      renderMatY();
+      renderMatAug();
+      ['matrix-x-output','matrix-y-output','matrix-aug-output'].forEach((id, i) => {
+        setTimeout(() => {
+          document.getElementById(id).classList.add('visible');
+        }, i * 220);
+      });
+      built = true;
+    });
+
+    document.getElementById('btn-reset-x').addEventListener('click', () => {
+      ['matrix-x-output','matrix-y-output','matrix-aug-output'].forEach(id => {
+        document.getElementById(id).classList.remove('visible');
+      });
+      built = false;
+    });
+
+    // Live update when table values change
+    document.getElementById('data-table').addEventListener('input', () => {
+      if (built) {
+        renderMatX();
+        renderMatY();
+        renderMatAug();
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chapter 10 — The Normal Distribution | Math for ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .act-badge { display:inline-block; padding:.2rem .7rem; border-radius:20px; font-size:.72rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; border:1px solid var(--gold); color:var(--gold); margin-bottom:.6rem; }
+    .bell-wrap { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; }
+    canvas#bell-canvas { width:100%; height:220px; display:block; }
+    .slider-row { display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-top:.8rem; }
+    .slider-row label { font-size:.82rem; color:var(--muted); min-width:100px; }
+    .slider-row input[type=range] { flex:1; min-width:120px; }
+    .slider-val { font-family:var(--mono); color:var(--accent); min-width:60px; font-size:.85rem; }
+
+    .applicant-row { display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; margin:.5rem 0; padding:.6rem .9rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); font-size:.85rem; }
+    .applicant-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .z-badge { font-family:var(--mono); font-size:.82rem; padding:.15rem .5rem; border-radius:4px; background:var(--surface2); }
+    .prob-badge { font-family:var(--mono); font-size:.82rem; color:var(--gold); }
+
+    .rule-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.8rem; margin-top:.8rem; }
+    @media(max-width:500px){ .rule-grid{grid-template-columns:1fr;} }
+    .rule-card { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:.8rem; text-align:center; }
+    .rule-pct { font-size:1.6rem; font-weight:700; color:var(--accent); font-family:var(--mono); }
+    .rule-lbl { font-size:.75rem; color:var(--muted); margin-top:.2rem; }
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li><li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html">3</a></li><li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li><li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li>
+      <li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html" class="active">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li><li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li><li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li><li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="chapter-hero">
+      <div class="act-badge">Act 2 · Statistics</div>
+      <div class="chapter-eyebrow">Chapter 10 of 19</div>
+      <h1 class="chapter-title">The Normal Distribution</h1>
+      <p class="chapter-intro">
+        In Ch 9, income emerged as a strong predictor. But how do we describe its distribution
+        mathematically? The <strong>Normal (Gaussian) distribution</strong> is the most important
+        shape in statistics — and it underlies assumptions in almost every ML model.
+      </p>
+    </div>
+
+    <!-- ── Bell curve interactive ────────────────────────────── -->
+    <h2 class="section-heading">The bell curve — interactive</h2>
+    <p class="section-sub">
+      Income in our loan dataset has a mean μ and spread σ. Drag the sliders to see how
+      μ (centre) and σ (width) shape the curve. The <strong style="color:var(--gold)">gold line</strong>
+      marks a specific applicant's income — watch the z-score update.
+    </p>
+
+    <div class="bell-wrap">
+      <canvas id="bell-canvas" width="800" height="220"></canvas>
+      <div class="slider-row">
+        <label>Mean μ ($k)</label>
+        <input type="range" id="sl-mu" min="30" max="80" value="52" step="1" />
+        <span class="slider-val" id="val-mu">52k</span>
+      </div>
+      <div class="slider-row">
+        <label>Std dev σ ($k)</label>
+        <input type="range" id="sl-sigma" min="5" max="30" value="17" step="1" />
+        <span class="slider-val" id="val-sigma">17k</span>
+      </div>
+      <div class="slider-row">
+        <label>Applicant income</label>
+        <input type="range" id="sl-x" min="20" max="90" value="35" step="1" />
+        <span class="slider-val" id="val-x">35k</span>
+      </div>
+      <div style="margin-top:.8rem;padding:.7rem 1rem;background:var(--surface);border-radius:var(--radius-sm);font-size:.88rem">
+        z-score = (x − μ) / σ = <strong style="font-family:var(--mono);color:var(--accent)" id="z-result">–</strong>
+        &nbsp;&nbsp;→&nbsp;&nbsp;
+        P(income ≤ x) ≈ <strong style="font-family:var(--mono);color:var(--gold)" id="p-result">–</strong>
+      </div>
+    </div>
+
+    <!-- ── Z-scores for our applicants ───────────────────────── -->
+    <h2 class="section-heading">Z-scores for our 8 applicants</h2>
+    <p class="section-sub">
+      A z-score answers: "how many standard deviations from the mean is this applicant?"
+      z &lt; −1 = unusually low income. z &gt; +1 = unusually high income.
+    </p>
+    <div class="card" id="zscore-panel"></div>
+
+    <!-- ── 68–95–99.7 rule ────────────────────────────────────── -->
+    <h2 class="section-heading">The 68–95–99.7 rule</h2>
+    <p class="section-sub">
+      For any Normal distribution, the same percentage of data always falls within 1σ, 2σ, 3σ of the mean.
+      This is why σ is so useful — it's a universal measuring stick.
+    </p>
+    <div class="rule-grid">
+      <div class="rule-card"><div class="rule-pct">68%</div><div class="rule-lbl">within 1σ of mean<br/>(μ−σ to μ+σ)</div></div>
+      <div class="rule-card"><div class="rule-pct">95%</div><div class="rule-lbl">within 2σ of mean<br/>(μ−2σ to μ+2σ)</div></div>
+      <div class="rule-card"><div class="rule-pct">99.7%</div><div class="rule-lbl">within 3σ of mean<br/>(μ−3σ to μ+3σ)</div></div>
+    </div>
+
+    <div class="insight insight-gold">
+      <strong>Why this matters for the loan model:</strong>
+      When we later compute probabilities (Ch 11–13), we'll assume features are roughly Gaussian.
+      Z-scores also let us <em>normalise</em> features — subtract mean, divide by σ — so that income
+      and age are on the same scale. This makes gradient descent converge faster (Ch 16).
+    </div>
+
+    <div class="insight" style="border-color:var(--accent)">
+      <strong>Story so far (Statistics: Ch 8–10):</strong>
+      We know our loan data's distributions (Ch 8), which features correlate with default (Ch 9),
+      and how to describe continuous features mathematically with mean, std dev, and z-scores (Ch 10).
+      <br/>
+      <strong>Next:</strong> We need a model that outputs a probability, not a number. Enter logistic regression → Chapter 11
+    </div>
+
+    <div class="chapter-nav">
+      <a href="./chapter9.html" class="btn">← Chapter 9</a>
+      <a href="./chapter11.html" class="btn btn-primary">Chapter 11: Logistic Regression →</a>
+    </div>
+  </div>
+
+  <script>
+    const loanData = [
+      { id:1, income:35, y:1 }, { id:2, income:55, y:0 }, { id:3, income:42, y:1 },
+      { id:4, income:80, y:0 }, { id:5, income:28, y:1 }, { id:6, income:65, y:0 },
+      { id:7, income:38, y:1 }, { id:8, income:72, y:0 },
+    ];
+
+    // Simple erf approximation for normal CDF
+    function erf(x) {
+      const t = 1/(1+0.3275911*Math.abs(x));
+      const poly = t*(0.254829592+t*(-0.284496736+t*(1.421413741+t*(-1.453152027+t*1.061405429))));
+      const res = 1 - poly*Math.exp(-x*x);
+      return x >= 0 ? res : -res;
+    }
+    function normalCDF(x, mu, sigma) {
+      return 0.5*(1+erf((x-mu)/(sigma*Math.SQRT2)));
+    }
+    function normalPDF(x, mu, sigma) {
+      return Math.exp(-0.5*((x-mu)/sigma)**2)/(sigma*Math.sqrt(2*Math.PI));
+    }
+
+    const canvas = document.getElementById('bell-canvas');
+    const ctx = canvas.getContext('2d');
+
+    function draw() {
+      const mu = parseFloat(document.getElementById('sl-mu').value);
+      const sigma = parseFloat(document.getElementById('sl-sigma').value);
+      const xv = parseFloat(document.getElementById('sl-x').value);
+      document.getElementById('val-mu').textContent = mu+'k';
+      document.getElementById('val-sigma').textContent = sigma+'k';
+      document.getElementById('val-x').textContent = xv+'k';
+
+      const W = canvas.width, H = canvas.height;
+      const padL=50, padR=20, padT=20, padB=40;
+      ctx.clearRect(0,0,W,H);
+
+      const xMin = mu-4*sigma, xMax = mu+4*sigma;
+      const sx = v => padL + (v-xMin)/(xMax-xMin)*(W-padL-padR);
+      const maxY = normalPDF(mu,mu,sigma);
+      const sy = v => H-padB - v/maxY*(H-padT-padB)*0.9;
+
+      // Shaded area for P(X <= xv)
+      ctx.fillStyle = 'rgba(59,130,246,0.15)';
+      ctx.beginPath();
+      const steps = 200;
+      ctx.moveTo(sx(xMin), sy(0));
+      for (let i=0;i<=steps;i++) {
+        const xi = xMin + (Math.min(xv,xMax)-xMin)*i/steps;
+        ctx.lineTo(sx(xi), sy(normalPDF(xi,mu,sigma)));
+      }
+      ctx.lineTo(sx(Math.min(xv,xMax)), sy(0));
+      ctx.closePath();
+      ctx.fill();
+
+      // Curve
+      ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      for (let i=0;i<=400;i++) {
+        const xi = xMin + (xMax-xMin)*i/400;
+        const yi = sy(normalPDF(xi,mu,sigma));
+        i===0 ? ctx.moveTo(sx(xi),yi) : ctx.lineTo(sx(xi),yi);
+      }
+      ctx.stroke();
+
+      // 1σ / 2σ markers
+      [-2,-1,0,1,2].forEach(n => {
+        const xi = mu+n*sigma;
+        ctx.strokeStyle = n===0?'#3b82f6':'#2a3a50'; ctx.lineWidth=1;
+        ctx.setLineDash(n===0?[]:[4,3]);
+        ctx.beginPath(); ctx.moveTo(sx(xi),padT); ctx.lineTo(sx(xi),H-padB); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle='#6b7c90'; ctx.font='11px IBM Plex Mono,monospace'; ctx.textAlign='center';
+        ctx.fillText(n===0?'μ':n>0?`μ+${n}σ`:`μ${n}σ`, sx(xi), H-padB+14);
+      });
+
+      // Applicant marker
+      ctx.strokeStyle = '#c9a45c'; ctx.lineWidth = 2;
+      ctx.setLineDash([5,3]);
+      ctx.beginPath(); ctx.moveTo(sx(xv),padT); ctx.lineTo(sx(xv),H-padB); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='#c9a45c'; ctx.font='bold 11px IBM Plex Mono,monospace'; ctx.textAlign='center';
+      ctx.fillText(xv+'k', sx(xv), padT-4);
+
+      // x axis
+      ctx.strokeStyle='#2a3a50'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(padL,H-padB); ctx.lineTo(W-padR,H-padB); ctx.stroke();
+
+      const z = (xv-mu)/sigma;
+      const p = normalCDF(xv,mu,sigma);
+      document.getElementById('z-result').textContent = z.toFixed(2);
+      document.getElementById('p-result').textContent = (p*100).toFixed(1)+'%';
+
+      // Update z-score panel
+      const panel = document.getElementById('zscore-panel');
+      panel.innerHTML = '';
+      loanData.forEach(d => {
+        const z = (d.income - mu)/sigma;
+        const row = document.createElement('div');
+        row.className = 'applicant-row';
+        row.innerHTML = `
+          <div class="applicant-dot" style="background:${d.y===1?'#f87171':'#4ade80'}"></div>
+          <span style="min-width:80px;font-size:.8rem;color:var(--muted)">Applicant ${d.id}</span>
+          <span style="color:var(--text);font-family:var(--mono);font-size:.83rem">Income: ${d.income}k</span>
+          <span class="z-badge">z = ${z.toFixed(2)}</span>
+          <span class="prob-badge">P(income ≤ this) = ${(normalCDF(d.income,mu,sigma)*100).toFixed(0)}%</span>
+        `;
+        panel.appendChild(row);
+      });
+    }
+
+    ['sl-mu','sl-sigma','sl-x'].forEach(id => document.getElementById(id).addEventListener('input', draw));
+    draw();
+  </script>
+</body>
+</html>

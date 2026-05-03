@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chapter 3 — Prediction = Matrix Multiplication | Math for ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .anim-area {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem;
+      margin: 1rem 0;
+      overflow-x: auto;
+    }
+
+    .dot-product-vis {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin: 0.8rem 0;
+      font-family: var(--mono);
+      font-size: 0.9rem;
+    }
+
+    .dp-row, .dp-col {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .dp-cell {
+      min-width: 3.2rem;
+      padding: 0.35rem 0.4rem;
+      text-align: center;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      transition: background 0.3s, border-color 0.3s, transform 0.2s;
+    }
+    .dp-cell.active-row { background: rgba(59,130,246,.22); border-color: var(--accent); }
+    .dp-cell.active-col { background: rgba(201,164,92,.22); border-color: var(--gold-dim); }
+    .dp-cell.result     { background: rgba(74,222,128,.2);  border-color: var(--green-dim); color: var(--green); font-weight: 700; }
+    .dp-cell.dim        { opacity: 0.3; }
+
+    .step-label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+
+    .formula-row {
+      font-family: var(--mono);
+      font-size: 0.88rem;
+      color: var(--muted);
+      padding: 0.4rem 0;
+      min-height: 1.8rem;
+      transition: opacity 0.3s;
+    }
+    .formula-row span { color: var(--text); }
+
+    .result-badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--green);
+      background: rgba(74,222,128,.12);
+      border: 1px solid var(--green-dim);
+      border-radius: var(--radius-sm);
+      padding: 0.2rem 0.7rem;
+      margin-left: 0.3rem;
+    }
+
+    .theta-inputs {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin: 0.5rem 0;
+    }
+    .theta-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .theta-field input {
+      width: 6rem;
+      padding: 0.4rem 0.5rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.95rem;
+      text-align: center;
+    }
+    .theta-field input:focus {
+      outline: 2px solid var(--accent-dim);
+      outline-offset: 1px;
+    }
+
+    .full-pred-table {
+      width: 100%;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      border-collapse: collapse;
+    }
+    .full-pred-table th {
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.5rem 0.8rem;
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+    .full-pred-table td {
+      border: 1px solid var(--border);
+      padding: 0.45rem 0.8rem;
+      text-align: center;
+    }
+    .cell-actual   { color: var(--gold); }
+    .cell-pred     { color: var(--accent); }
+    .cell-err      { color: var(--danger); }
+    .cell-err.ok   { color: var(--green); }
+  </style>
+</head>
+<body>
+    <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li>
+      <li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html" class="active">3</a></li>
+      <li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li>
+      <li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li>
+      <li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li>
+      <li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li>
+      <li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li>
+      <li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="chapter-hero">
+      <div class="chapter-eyebrow">Chapter 3 of 19</div>
+      <h1 class="chapter-title">Prediction = Matrix Multiplication</h1>
+      <p class="chapter-intro">
+        In Ch 2 we saw ML needs to minimize error, which means we need to compute predictions first.
+        For any applicant, a prediction is a single <strong>dot product</strong> — one row of X times the θ vector.
+        For all 5 applicants simultaneously, it's <strong>Xθ = ŷ</strong>. This is why matrices matter.
+      </p>
+    </div>
+
+    <!-- ── What is θ ─────────────────────────────────────────────── -->
+    <h2 class="section-heading">The parameter vector θ</h2>
+    <p class="section-sub">
+      θ holds the three weights our model has learned.
+      Change them here and watch all predictions update live.
+    </p>
+
+    <div class="card">
+      <div class="card-title">Set θ (your model weights)</div>
+      <div class="theta-inputs">
+        <div class="theta-field">
+          <span>θ₀ (intercept)</span>
+          <input type="number" id="t0" value="1.48" step="1" />
+        </div>
+        <div class="theta-field">
+          <span>θ₁ (income weight)</span>
+          <input type="number" id="t1" value="-0.021" step="0.01" />
+        </div>
+        <div class="theta-field">
+          <span>θ₂ (age weight)</span>
+          <input type="number" id="t2" value="0.005" step="0.5" />
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-gold" id="btn-best">★ Use best-fit θ</button>
+        <button class="btn" id="btn-zero-theta">Reset to zero</button>
+      </div>
+    </div>
+
+    <!-- ── One dot product ──────────────────────────────────────── -->
+    <h2 class="section-heading">Step through: one prediction at a time</h2>
+    <p class="section-sub">
+      Each prediction is the dot product of one applicant's features [1, income, age] with θ.
+      Click "Next applicant" to step through all 5 applicants.
+    </p>
+
+    <div class="anim-area">
+      <div class="step-label" id="step-lbl">Applicant 1 of 5</div>
+
+      <!-- X row -->
+      <div style="margin-bottom:.5rem">
+        <div style="font-size:.72rem;color:var(--muted);margin-bottom:.3rem">
+          Row of X (bias=1, income, age) &nbsp;<span style="color:var(--accent)">→ highlighted</span>
+        </div>
+        <div class="dot-product-vis" id="x-row-vis"></div>
+      </div>
+
+      <!-- θ col -->
+      <div style="margin-bottom:.5rem">
+        <div style="font-size:.72rem;color:var(--muted);margin-bottom:.3rem">
+          θ vector &nbsp;<span style="color:var(--gold)">→ highlighted</span>
+        </div>
+        <div class="dot-product-vis" id="theta-vis"></div>
+      </div>
+
+      <!-- formula -->
+      <div class="formula-row" id="formula-row"></div>
+
+      <!-- result -->
+      <div style="margin-top:.6rem;font-size:.9rem;color:var(--muted)">
+        Predicted score:
+        <span class="result-badge" id="pred-badge">—</span>
+        &nbsp; Actual: <span style="color:var(--gold)" id="actual-badge">—</span>
+        &nbsp; Error: <span style="color:var(--danger)" id="error-badge">—</span>
+      </div>
+
+      <div class="btn-row" style="margin-top:1rem">
+        <button class="btn" id="btn-prev-house" disabled>← Prev applicant</button>
+        <button class="btn btn-primary" id="btn-next-house">Next applicant →</button>
+      </div>
+    </div>
+
+    <!-- ── Full matrix multiplication ──────────────────────────── -->
+    <h2 class="section-heading">All at once: Xθ = ŷ</h2>
+    <p class="section-sub">
+      When we compute Xθ we get all 5 predictions simultaneously.
+      This is why matrix multiplication is so powerful — one operation, all predictions.
+    </p>
+
+    <div class="matrix-equation" style="margin:1rem 0;overflow-x:auto">
+      <!-- X matrix -->
+      <div>
+        <div class="mat-label">X (5×3)</div>
+        <div class="mat-block">
+          <div class="mat-bracket">[</div>
+          <div class="mat-grid" id="mat-X" style="grid-template-columns:repeat(3,auto)"></div>
+          <div class="mat-bracket">]</div>
+        </div>
+      </div>
+
+      <div class="eq-op">×</div>
+
+      <!-- θ vector -->
+      <div>
+        <div class="mat-label">θ (3×1)</div>
+        <div class="mat-block">
+          <div class="mat-bracket">[</div>
+          <div class="mat-grid" id="mat-theta" style="grid-template-columns:auto"></div>
+          <div class="mat-bracket">]</div>
+        </div>
+      </div>
+
+      <div class="eq-op">=</div>
+
+      <!-- ŷ vector -->
+      <div>
+        <div class="mat-label">ŷ predictions (5×1)</div>
+        <div class="mat-block">
+          <div class="mat-bracket">[</div>
+          <div class="mat-grid" id="mat-yhat" style="grid-template-columns:auto"></div>
+          <div class="mat-bracket">]</div>
+        </div>
+      </div>
+
+      <div class="eq-op">vs</div>
+
+      <!-- y actual -->
+      <div>
+        <div class="mat-label">y actual (5×1)</div>
+        <div class="mat-block">
+          <div class="mat-bracket">[</div>
+          <div class="mat-grid" id="mat-y-actual" style="grid-template-columns:auto"></div>
+          <div class="mat-bracket">]</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Full predictions table ────────────────────────────── -->
+    <h2 class="section-heading">All predictions vs actuals</h2>
+    <table class="full-pred-table">
+      <thead>
+        <tr>
+          <th>Applicant</th>
+          <th>Income ($k)</th>
+          <th>Age</th>
+          <th style="color:var(--gold)">Actual (0/1)</th>
+          <th style="color:var(--accent)">Predicted (ŷ)</th>
+          <th style="color:var(--danger)">Error</th>
+        </tr>
+      </thead>
+      <tbody id="pred-tbody"></tbody>
+    </table>
+
+    <div class="insight insight-green" style="margin-top:1.5rem">
+      <strong>Key insight:</strong>
+      <code>ŷ = Xθ</code> is a (5×3)·(3×1) = (5×1) matrix multiplication.
+      Changing any weight θᵢ shifts <em>all</em> predictions at once —
+      because every row of X uses all three weights.
+    </div>
+
+    <div class="insight insight-gold">
+      <strong>The remaining question:</strong>
+      We tried random θ values — but how do we find the <em>best</em> θ automatically?
+      That's exactly what the <strong>Normal Equation</strong> in Chapter 4 solves.
+    </div>
+
+    <div class="insight" style="border-color:var(--accent)">
+      <strong>Story so far:</strong>
+      We can compute ŷ = Xθ for any θ. The question is: which θ minimises the error?
+      <br/>
+      <strong>Next:</strong> Derive the exact formula for the optimal θ using matrix algebra → Chapter 4
+    </div>
+
+    <div class="chapter-nav">
+      <a href="./chapter2.html" class="btn">← Chapter 2</a>
+      <a href="./chapter4.html" class="btn btn-primary">Chapter 4: Normal Equation →</a>
+    </div>
+  </div>
+
+  <script>
+    const houses = [
+      { size: 35, rooms: 28, price: 1 },
+      { size: 55, rooms: 45, price: 0 },
+      { size: 42, rooms: 32, price: 1 },
+      { size: 80, rooms: 52, price: 0 },
+      { size: 28, rooms: 24, price: 1 },
+    ];
+
+    const BEST = [1.48, -0.021, 0.005];
+
+    function getTheta() {
+      return [
+        parseFloat(document.getElementById('t0').value) || 0,
+        parseFloat(document.getElementById('t1').value) || 0,
+        parseFloat(document.getElementById('t2').value) || 0,
+      ];
+    }
+
+    function predict(h, th) {
+      return th[0] * 1 + th[1] * h.size + th[2] * h.rooms;
+    }
+
+    // ── Step-through animation ────────────────────────────────
+    let currentStep = 0;
+
+    function mkCell(text, cls = '') {
+      const d = document.createElement('div');
+      d.className = 'dp-cell ' + cls;
+      d.textContent = text;
+      return d;
+    }
+
+    function renderStep() {
+      const th = getTheta();
+      const h  = houses[currentStep];
+      const row = [1, h.size, h.rooms];
+      const labels = ['1', String(h.size), String(h.rooms)];
+
+      document.getElementById('step-lbl').textContent = `Applicant ${currentStep + 1} of ${houses.length}`;
+      document.getElementById('btn-prev-house').disabled = currentStep === 0;
+      document.getElementById('btn-next-house').disabled = currentStep === houses.length - 1;
+
+      // X row
+      const xVis = document.getElementById('x-row-vis');
+      xVis.replaceChildren();
+      labels.forEach(l => xVis.appendChild(mkCell(l, 'active-row')));
+
+      // θ col
+      const tVis = document.getElementById('theta-vis');
+      tVis.replaceChildren();
+      th.forEach(v => tVis.appendChild(mkCell(v.toFixed(3), 'active-col')));
+
+      // formula
+      const terms = row.map((r, i) => `${labels[i]} × ${th[i].toFixed(3)}`).join(' + ');
+      const pred = predict(h, th);
+      document.getElementById('formula-row').innerHTML =
+        `<span>${terms}</span> = <strong style="color:var(--green)">${pred.toFixed(3)}</strong>`;
+
+      document.getElementById('pred-badge').textContent = pred.toFixed(3);
+      document.getElementById('actual-badge').textContent = h.price;
+      const err = pred - h.price;
+      const errEl = document.getElementById('error-badge');
+      errEl.textContent = (err >= 0 ? '+' : '') + err.toFixed(3);
+      errEl.style.color = Math.abs(err) < 0.3 ? 'var(--green)' : 'var(--danger)';
+    }
+
+    document.getElementById('btn-next-house').addEventListener('click', () => {
+      if (currentStep < houses.length - 1) { currentStep++; renderStep(); }
+    });
+    document.getElementById('btn-prev-house').addEventListener('click', () => {
+      if (currentStep > 0) { currentStep--; renderStep(); }
+    });
+
+    // ── Full matrix display ───────────────────────────────────
+    function matCell(text, cls = '') {
+      const s = document.createElement('span');
+      s.className = 'mat-cell ' + cls;
+      s.textContent = text;
+      return s;
+    }
+
+    function renderFullMatrix() {
+      const th = getTheta();
+
+      // X
+      const mX = document.getElementById('mat-X');
+      mX.replaceChildren();
+      houses.forEach(h => {
+        mX.appendChild(matCell('1', 'hl-bias'));
+        mX.appendChild(matCell(h.size, 'hl-feat'));
+        mX.appendChild(matCell(h.rooms, 'hl-feat'));
+      });
+
+      // θ
+      const mT = document.getElementById('mat-theta');
+      mT.replaceChildren();
+      th.forEach((v, i) => {
+        const cls = i === 0 ? 'hl-bias' : 'hl-feat';
+        mT.appendChild(matCell(v.toFixed(3), cls));
+      });
+
+      // ŷ
+      const mYhat = document.getElementById('mat-yhat');
+      mYhat.replaceChildren();
+      houses.forEach(h => {
+        mYhat.appendChild(matCell(predict(h, th).toFixed(1), 'hl-result'));
+      });
+
+      // y actual
+      const mY = document.getElementById('mat-y-actual');
+      mY.replaceChildren();
+      houses.forEach(h => {
+        mY.appendChild(matCell(h.price, 'hl-target'));
+      });
+
+      // pred table
+      const tbody = document.getElementById('pred-tbody');
+      tbody.replaceChildren();
+      houses.forEach((h, i) => {
+        const pred = predict(h, th);
+        const err = pred - h.price;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>Person ${i+1}</td>
+          <td>${h.size}</td>
+          <td>${h.rooms}</td>
+          <td class="cell-actual">${h.price}</td>
+          <td class="cell-pred">${pred.toFixed(3)}</td>
+          <td class="cell-err ${Math.abs(err)<0.3?'ok':''}">${err>=0?'+':''}${err.toFixed(3)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function fullUpdate() {
+      renderStep();
+      renderFullMatrix();
+    }
+
+    document.getElementById('btn-best').addEventListener('click', () => {
+      document.getElementById('t0').value = BEST[0];
+      document.getElementById('t1').value = BEST[1];
+      document.getElementById('t2').value = BEST[2];
+      fullUpdate();
+    });
+
+    document.getElementById('btn-zero-theta').addEventListener('click', () => {
+      ['t0','t1','t2'].forEach(id => document.getElementById(id).value = '0');
+      fullUpdate();
+    });
+
+    ['t0','t1','t2'].forEach(id => {
+      document.getElementById(id).addEventListener('input', fullUpdate);
+    });
+
+    fullUpdate();
+  </script>
+</body>
+</html>

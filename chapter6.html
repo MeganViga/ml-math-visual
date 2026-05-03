@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chapter 6 — Gradient Descent | Math for ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    #loss-canvas {
+      display: block;
+      width: 100%;
+      max-width: 560px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #0a0f18;
+      touch-action: none;
+    }
+
+    .gd-controls {
+      display: flex;
+      flex-direction: column;
+      gap: .6rem;
+      margin: .8rem 0;
+    }
+    .gd-ctrl-row {
+      display: flex;
+      align-items: center;
+      gap: .8rem;
+    }
+    .gd-ctrl-row label { font-size:.82rem;color:var(--muted);min-width:9rem; }
+    .gd-ctrl-row input[type=range] { flex:1;accent-color:var(--accent); }
+    .gd-ctrl-row .badge { font-family:var(--mono);font-size:.85rem;min-width:4rem;text-align:right;color:var(--text); }
+
+    .theta-live {
+      display:flex;gap:1.5rem;flex-wrap:wrap;margin:.8rem 0;
+    }
+    .theta-live-box {
+      background:var(--surface2);border:1px solid var(--border);
+      border-radius:var(--radius-sm);padding:.5rem .9rem;min-width:7rem;text-align:center;
+    }
+    .theta-live-box .lbl { font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em; }
+    .theta-live-box .val { font-family:var(--mono);font-size:1.1rem;font-weight:700;color:var(--accent);margin-top:.15rem; }
+
+    .iter-log {
+      height:180px;overflow-y:auto;
+      font-family:var(--mono);font-size:.78rem;
+      background:var(--bg);border:1px solid var(--border);
+      border-radius:var(--radius-sm);padding:.5rem .7rem;
+      color:var(--muted);
+    }
+    .iter-log .iter-line { padding:.1rem 0;border-bottom:1px solid var(--border); }
+    .iter-line .iter-n { color:var(--accent); }
+    .iter-line .iter-loss { color:var(--danger); }
+    .iter-line .iter-theta { color:var(--text); }
+
+    .compare-table {
+      width:100%;border-collapse:collapse;font-size:.88rem;margin-top:.5rem;
+    }
+    .compare-table th {
+      background:var(--surface2);color:var(--muted);
+      padding:.5rem .8rem;border:1px solid var(--border);
+      font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;
+    }
+    .compare-table td {
+      border:1px solid var(--border);padding:.5rem .8rem;
+      font-family:var(--mono);
+    }
+  </style>
+</head>
+<body>
+    <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li>
+      <li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html">3</a></li>
+      <li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li>
+      <li><a href="./chapter6.html" class="active">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li>
+      <li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li>
+      <li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li>
+      <li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li>
+      <li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="chapter-hero">
+      <div class="chapter-eyebrow">Chapter 6 of 19</div>
+      <h1 class="chapter-title">Gradient Descent</h1>
+      <p class="chapter-intro">
+        Ch 4 found the optimal θ by inverting a matrix — elegant, but O(n³). For millions of applicants
+        or thousands of features, that's too slow. And if features are correlated (Ch 5), the matrix
+        may not even be invertible. Gradient Descent finds the same θ iteratively — no inversion needed.
+      </p>
+    </div>
+
+    <!-- ── Why GD ─────────────────────────────────────────────── -->
+    <h2 class="section-heading">Why not always use the Normal Equation?</h2>
+    <div class="card">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Normal Equation</th>
+            <th>Gradient Descent</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="color:var(--muted)">How it works</td>
+            <td style="color:var(--green)">Exact formula θ=(XᵀX)⁻¹Xᵀy</td>
+            <td style="color:var(--accent)">Iterative updates</td>
+          </tr>
+          <tr>
+            <td style="color:var(--muted)">Complexity</td>
+            <td style="color:var(--danger)">O(n³) — cube of features</td>
+            <td style="color:var(--green)">O(k·m·n) — linear in data size</td>
+          </tr>
+          <tr>
+            <td style="color:var(--muted)">For 1000 features</td>
+            <td style="color:var(--danger)">10⁹ operations — slow</td>
+            <td style="color:var(--green)">Fast, works well</td>
+          </tr>
+          <tr>
+            <td style="color:var(--muted)">Requires tuning</td>
+            <td style="color:var(--green)">No (one-shot)</td>
+            <td style="color:var(--danger)">Yes (learning rate α)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Intuition ───────────────────────────────────────────── -->
+    <h2 class="section-heading">The intuition — a ball rolling downhill</h2>
+    <div class="card">
+      <p style="font-size:.9rem;color:var(--muted)">
+        Imagine the loss <code>L(θ) = ‖Xθ − y‖²</code> as a <strong>bowl-shaped surface</strong>.
+        The minimum of the bowl is the optimal θ. Gradient Descent:
+      </p>
+      <ol style="font-size:.88rem;color:var(--muted);margin:.8rem 0 0 1.2rem;line-height:2">
+        <li>Start at a random point on the bowl</li>
+        <li>Compute the <strong style="color:var(--accent)">gradient</strong> — which direction is steepest uphill?</li>
+        <li>Step a little in the <strong style="color:var(--accent)">opposite</strong> direction (downhill)</li>
+        <li>Repeat until the ball settles at the bottom</li>
+      </ol>
+      <div class="eq-box" style="margin-top:.8rem">
+        θ ← θ − α · ∇L(θ) &nbsp;&nbsp;where&nbsp;&nbsp; ∇L = (2/m) Xᵀ(Xθ − y)
+      </div>
+    </div>
+
+    <!-- ── Loss surface visualisation ─────────────────────────── -->
+    <h2 class="section-heading">Loss surface — 2D contour (θ₀ vs θ₁)</h2>
+    <p class="section-sub">
+      Colour = loss value (dark = low, bright = high). The white dot is the current θ.
+      Watch it descend to the minimum (red ★).
+    </p>
+
+    <canvas id="loss-canvas" width="560" height="380"></canvas>
+
+    <!-- ── Controls ───────────────────────────────────────────── -->
+    <div class="card" style="margin-top:1rem">
+      <div class="card-title">Parameters</div>
+      <div class="gd-controls">
+        <div class="gd-ctrl-row">
+          <label>Learning rate α</label>
+          <input type="range" id="lr-slider" min="-4" max="-1" step="0.1" value="-2.5" />
+          <span class="badge" id="lr-val">—</span>
+        </div>
+        <div class="gd-ctrl-row">
+          <label>Start θ₀</label>
+          <input type="range" id="t0-start" min="-1" max="3" step="0.1" value="2.5" />
+          <span class="badge" id="t0-val">—</span>
+        </div>
+        <div class="gd-ctrl-row">
+          <label>Start θ₁</label>
+          <input type="range" id="t1-start" min="-0.06" max="0.02" step="0.002" value="0.015" />
+          <span class="badge" id="t1-val">—</span>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-run">▶ Run gradient descent</button>
+        <button class="btn" id="btn-step-gd">Step once</button>
+        <button class="btn btn-ghost" id="btn-reset-gd">Reset</button>
+      </div>
+    </div>
+
+    <!-- ── Live θ display ──────────────────────────────────────── -->
+    <div class="theta-live" id="theta-live-wrap">
+      <div class="theta-live-box">
+        <div class="lbl">θ₀</div>
+        <div class="val" id="live-t0">—</div>
+      </div>
+      <div class="theta-live-box">
+        <div class="lbl">θ₁</div>
+        <div class="val" id="live-t1">—</div>
+      </div>
+      <div class="theta-live-box" style="border-color:var(--danger)">
+        <div class="lbl">Loss (SSR/m)</div>
+        <div class="val" id="live-loss" style="color:var(--danger)">—</div>
+      </div>
+      <div class="theta-live-box" style="border-color:var(--green-dim)">
+        <div class="lbl">Iteration</div>
+        <div class="val" id="live-iter" style="color:var(--green)">0</div>
+      </div>
+    </div>
+
+    <!-- ── Iteration log ──────────────────────────────────────── -->
+    <h2 class="section-heading">Iteration log</h2>
+    <div class="iter-log" id="iter-log"></div>
+
+    <div class="insight" style="margin-top:1.2rem">
+      <strong>The gradient in matrix form:</strong>
+      <code>∇L = (2/m) Xᵀ(Xθ − y)</code>
+      This is a single matrix–vector product — very fast to compute even for large datasets.
+      That's why gradient descent scales to millions of examples while the Normal Equation doesn't.
+    </div>
+
+    <div class="insight insight-gold">
+      <strong>Learning rate matters:</strong>
+      Too large → overshoots, diverges. Too small → converges slowly.
+      Try different values of α using the slider above to see both effects.
+    </div>
+
+    <div class="insight" style="border-color:var(--accent)">
+      <strong>Story so far:</strong>
+      We now have two ways to find the best θ for our loan default risk model: Normal Equation (exact, slow)
+      and Gradient Descent (iterative, scalable). Both work — they find the same answer.
+      <br/>
+      <strong>Next:</strong> Income and age overlap a lot. Can we compress them into fewer dimensions without losing information? → Chapter 7: PCA
+    </div>
+
+    <div class="chapter-nav">
+      <a href="./chapter5.html" class="btn">← Chapter 5</a>
+      <a href="./chapter7.html" class="btn btn-primary">Chapter 7: PCA →</a>
+    </div>
+  </div>
+
+  <script>
+    // ── Data (use only 2 features for 2D visualisation) ──────────
+    const applicants = [35, 55, 42, 80, 28];   // income ($k)
+    const prices = [1, 0, 1, 0, 1];             // default (0/1)
+    const m = applicants.length;
+
+    // X = [1, size]
+    const X = applicants.map(s => [1, s]);
+
+    // Optimal (from Normal Equation on loan data)
+    const OPT_T0 = 1.48, OPT_T1 = -0.021;
+
+    // ── Loss function ─────────────────────────────────────────────
+    function loss(t0, t1) {
+      return prices.reduce((s, p, i) => {
+        const e = (t0 + t1 * applicants[i]) - p;
+        return s + e * e;
+      }, 0) / m;
+    }
+
+    function gradient(t0, t1) {
+      let g0 = 0, g1 = 0;
+      prices.forEach((p, i) => {
+        const e = (t0 + t1 * applicants[i]) - p;
+        g0 += 2 * e / m;
+        g1 += 2 * e * applicants[i] / m;
+      });
+      return [g0, g1];
+    }
+
+    // ── Canvas setup ──────────────────────────────────────────────
+    const canvas = document.getElementById('loss-canvas');
+    const ctx = canvas.getContext('2d');
+    const CW = 560, CH = 380;
+    canvas.width = CW * (window.devicePixelRatio || 1);
+    canvas.height = CH * (window.devicePixelRatio || 1);
+    ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+
+    // θ₀ ∈ [-1, 3], θ₁ ∈ [-0.06, 0.02]
+    const T0_MIN = -1, T0_MAX = 3;
+    const T1_MIN = -0.06, T1_MAX = 0.02;
+    const PAD = {l:45,r:15,t:15,b:40};
+    const PW = CW - PAD.l - PAD.r;
+    const PH = CH - PAD.t - PAD.b;
+
+    const sx = t0 => PAD.l + (t0 - T0_MIN) / (T0_MAX - T0_MIN) * PW;
+    const sy = t1 => PAD.t + (1 - (t1 - T1_MIN) / (T1_MAX - T1_MIN)) * PH;
+    const tx = px => T0_MIN + (px - PAD.l) / PW * (T0_MAX - T0_MIN);
+    const ty = py => T1_MIN + (1 - (py - PAD.t) / PH) * (T1_MAX - T1_MIN);
+
+    // Precompute loss grid
+    const GRID = 80;
+    const lossGrid = [];
+    let maxL = 0;
+    for (let j = 0; j <= GRID; j++) {
+      lossGrid.push([]);
+      for (let i = 0; i <= GRID; i++) {
+        const t0 = T0_MIN + i / GRID * (T0_MAX - T0_MIN);
+        const t1 = T1_MIN + j / GRID * (T1_MAX - T1_MIN);
+        const l = loss(t0, t1);
+        lossGrid[j].push(l);
+        if (l > maxL) maxL = l;
+      }
+    }
+
+    function drawContour() {
+      const imgData = ctx.createImageData(PW, PH);
+      for (let py = 0; py < PH; py++) {
+        for (let px = 0; px < PW; px++) {
+          const fi = px / PW * GRID;
+          const fj = (1 - py / PH) * GRID;
+          const i = Math.min(GRID - 1, Math.floor(fi));
+          const j = Math.min(GRID - 1, Math.floor(fj));
+          const l = lossGrid[j][i];
+          const t = Math.pow(l / maxL, 0.35);
+          const idx = (py * PW + px) * 4;
+          // deep blue → cyan → bright
+          imgData.data[idx]   = Math.round(t * 60);
+          imgData.data[idx+1] = Math.round(t * 120 + 20);
+          imgData.data[idx+2] = Math.round(40 + t * 140);
+          imgData.data[idx+3] = 255;
+        }
+      }
+      ctx.putImageData(imgData, PAD.l, PAD.t);
+    }
+
+    function drawAxes() {
+      ctx.strokeStyle = '#3d4f66';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(PAD.l, PAD.t); ctx.lineTo(PAD.l, PAD.t + PH);
+      ctx.moveTo(PAD.l, PAD.t + PH); ctx.lineTo(PAD.l + PW, PAD.t + PH);
+      ctx.stroke();
+      ctx.fillStyle = '#5a6a80';
+      ctx.font = '11px IBM Plex Sans, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('θ₀ (intercept)', PAD.l + PW / 2, CH - 5);
+      ctx.save(); ctx.translate(12, PAD.t + PH / 2); ctx.rotate(-Math.PI / 2);
+      ctx.fillText('θ₁ (size weight)', 0, 0); ctx.restore();
+    }
+
+    function drawOptimal() {
+      const x = sx(OPT_T0), y = sy(OPT_T1);
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillStyle = '#f87171';
+      ctx.textAlign = 'center';
+      ctx.fillText('★', x, y + 5);
+    }
+
+    // ── State ─────────────────────────────────────────────────────
+    let t0, t1, path = [], animId = null, iterCount = 0;
+
+    function getParams() {
+      const lr = Math.pow(10, parseFloat(document.getElementById('lr-slider').value));
+      const st0 = parseFloat(document.getElementById('t0-start').value);
+      const st1 = parseFloat(document.getElementById('t1-start').value);
+      return { lr, st0, st1 };
+    }
+
+    function updateBadges() {
+      const { lr, st0, st1 } = getParams();
+      document.getElementById('lr-val').textContent = lr.toExponential(1);
+      document.getElementById('t0-val').textContent = st0.toFixed(0);
+      document.getElementById('t1-val').textContent = st1.toFixed(2);
+    }
+
+    function redraw() {
+      ctx.clearRect(0, 0, CW, CH);
+      drawContour();
+      drawAxes();
+      drawOptimal();
+
+      // Draw path
+      if (path.length > 1) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(sx(path[0][0]), sy(path[0][1]));
+        path.forEach(([a, b]) => ctx.lineTo(sx(a), sy(b)));
+        ctx.stroke();
+      }
+
+      // Current point
+      if (path.length > 0) {
+        const [ct0, ct1] = path[path.length - 1];
+        ctx.beginPath();
+        ctx.arc(sx(ct0), sy(ct1), 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
+    function updateLiveDisplay() {
+      document.getElementById('live-t0').textContent = t0.toFixed(3);
+      document.getElementById('live-t1').textContent = t1.toFixed(5);
+      document.getElementById('live-loss').textContent = loss(t0, t1).toFixed(1);
+      document.getElementById('live-iter').textContent = iterCount;
+    }
+
+    function logIter() {
+      if (iterCount % 5 !== 0 && iterCount > 10) return;
+      const log = document.getElementById('iter-log');
+      const d = document.createElement('div');
+      d.className = 'iter-line';
+      d.innerHTML = `<span class="iter-n">iter ${String(iterCount).padStart(4)}</span>  ` +
+        `θ₀=<span class="iter-theta">${t0.toFixed(3)}</span>  ` +
+        `θ₁=<span class="iter-theta">${t1.toFixed(5)}</span>  ` +
+        `loss=<span class="iter-loss">${loss(t0, t1).toFixed(2)}</span>`;
+      log.appendChild(d);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function step() {
+      const { lr } = getParams();
+      const [g0, g1] = gradient(t0, t1);
+      t0 -= lr * g0;
+      t1 -= lr * g1;
+      iterCount++;
+      path.push([t0, t1]);
+      logIter();
+      updateLiveDisplay();
+      redraw();
+    }
+
+    function reset() {
+      cancelAnimationFrame(animId);
+      animId = null;
+      const { st0, st1 } = getParams();
+      t0 = st0; t1 = st1;
+      path = [[t0, t1]];
+      iterCount = 0;
+      document.getElementById('iter-log').replaceChildren();
+      updateLiveDisplay();
+      redraw();
+    }
+
+    function run() {
+      cancelAnimationFrame(animId);
+      let i = 0;
+      function tick() {
+        step();
+        i++;
+        if (i < 200 && loss(t0, t1) > 0.5) {
+          animId = requestAnimationFrame(tick);
+        }
+      }
+      tick();
+    }
+
+    document.getElementById('btn-run').addEventListener('click', run);
+    document.getElementById('btn-step-gd').addEventListener('click', step);
+    document.getElementById('btn-reset-gd').addEventListener('click', reset);
+    ['lr-slider','t0-start','t1-start'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => { updateBadges(); reset(); });
+    });
+
+    updateBadges();
+    reset();
+  </script>
+</body>
+</html>

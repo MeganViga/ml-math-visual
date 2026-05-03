@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chapter 15 — Partial Derivatives & Gradient | Math for ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .act-badge { display:inline-block; padding:.2rem .7rem; border-radius:20px; font-size:.72rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; border:1px solid #34d399; color:#34d399; margin-bottom:.6rem; }
+    canvas#contour-canvas { width:100%; aspect-ratio:1/0.75; display:block; cursor:crosshair; }
+    .chart-wrap { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; }
+    .grad-info { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; margin-top:.8rem; }
+    @media(max-width:480px){ .grad-info{grid-template-columns:1fr;} }
+    .grad-cell { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:.6rem .9rem; }
+    .grad-val { font-family:var(--mono); font-size:1.1rem; font-weight:700; }
+    .grad-lbl { font-size:.75rem; color:var(--muted); margin-top:.2rem; }
+    .partial-block { background:var(--surface); border-radius:var(--radius-sm); padding:.8rem 1rem; font-family:var(--mono); font-size:.82rem; line-height:2.2; overflow-x:auto; margin:.5rem 0; }
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li><li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html">3</a></li><li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li><li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li><li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li><li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li>
+      <li><a href="./chapter15.html" class="active">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li><li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="chapter-hero">
+      <div class="act-badge">Act 4 · Calculus</div>
+      <div class="chapter-eyebrow">Chapter 15 of 19</div>
+      <h1 class="chapter-title">Partial Derivatives &amp; The Gradient</h1>
+      <p class="chapter-intro">
+        Ch 14 showed the derivative of L with respect to a single θ. But our loan model has
+        θ₀ (bias) and θ₁ (income weight) — loss depends on both simultaneously.
+        The <strong>gradient ∇L</strong> is the vector of all partial derivatives: it points
+        uphill in parameter space. Gradient descent follows −∇L.
+      </p>
+    </div>
+
+    <!-- ── Partial derivative formula ────────────────────────── -->
+    <h2 class="section-heading">The partial derivatives for logistic regression</h2>
+    <div class="card">
+      <p style="font-size:.88rem;color:var(--muted);margin-bottom:.6rem">
+        For each parameter θⱼ, the partial derivative is the same elegant formula from Ch 14:
+      </p>
+      <div class="partial-block">
+        <span style="color:var(--accent)">∂L/∂θ₀ = (1/m) Σ (σ(z_i) − y_i)</span>
+        <span style="color:var(--muted)">  &nbsp;bias gradient</span><br/>
+        <span style="color:var(--accent)">∂L/∂θ₁ = (1/m) Σ (σ(z_i) − y_i) · income_i</span>
+        <span style="color:var(--muted)">  &nbsp;income weight gradient</span>
+      </div>
+      <p style="font-size:.82rem;color:var(--muted);margin-top:.4rem">
+        Together: <strong style="color:var(--text)">∇L = [∂L/∂θ₀, ∂L/∂θ₁]</strong> — a 2D vector pointing uphill.
+        Gradient descent takes steps in the direction of <strong>−∇L</strong>.
+      </p>
+    </div>
+
+    <!-- ── Contour plot + gradient ─────────────────────────────── -->
+    <h2 class="section-heading">Loss contour map — click anywhere to see the gradient</h2>
+    <p class="section-sub">
+      Each contour ring is a constant loss value. Click any point (θ₀, θ₁) to see
+      the gradient arrow pointing uphill. The minimum (deepest valley) is where gradient descent ends up.
+    </p>
+
+    <div class="chart-wrap">
+      <canvas id="contour-canvas" width="500" height="375"></canvas>
+      <div class="grad-info">
+        <div class="grad-cell">
+          <div class="grad-val" style="color:var(--accent)" id="t0-out">–</div>
+          <div class="grad-lbl">θ₀ (bias)</div>
+        </div>
+        <div class="grad-cell">
+          <div class="grad-val" style="color:var(--accent)" id="t1-out">–</div>
+          <div class="grad-lbl">θ₁ (income weight)</div>
+        </div>
+        <div class="grad-cell">
+          <div class="grad-val" style="color:var(--gold)" id="g0-out">–</div>
+          <div class="grad-lbl">∂L/∂θ₀</div>
+        </div>
+        <div class="grad-cell">
+          <div class="grad-val" style="color:var(--gold)" id="g1-out">–</div>
+          <div class="grad-lbl">∂L/∂θ₁</div>
+        </div>
+      </div>
+      <p style="font-size:.78rem;color:var(--muted);margin-top:.6rem">
+        <span style="color:var(--gold)">Gold arrow</span> = gradient direction (uphill).
+        Gradient descent moves in the <strong>opposite</strong> direction.
+      </p>
+    </div>
+
+    <div class="insight insight-gold">
+      <strong>Why this matters for the loan model:</strong>
+      The gradient tells us simultaneously how to adjust the bias and the income weight.
+      In our full loan model with 4 features (income, age, loan, debt), we'd have 5 partial
+      derivatives — one per θ — all computed and applied in parallel each step.
+    </div>
+
+    <div class="insight" style="border-color:var(--accent)">
+      <strong>Story so far:</strong>
+      We have the loss function (Ch 13), know how to compute its slope at any point (Ch 14),
+      and now have the full gradient vector in parameter space (Ch 15).
+      <br/>
+      <strong>Next:</strong> Use −∇L to iteratively walk to the minimum for our loan model → Chapter 16
+    </div>
+
+    <div class="chapter-nav">
+      <a href="./chapter14.html" class="btn">← Chapter 14</a>
+      <a href="./chapter16.html" class="btn btn-primary">Chapter 16: GD for Classification →</a>
+    </div>
+  </div>
+
+  <script>
+    const applicants = [
+      { income:35, y:1 }, { income:55, y:0 }, { income:42, y:1 },
+      { income:80, y:0 }, { income:28, y:1 }, { income:65, y:0 },
+      { income:38, y:1 }, { income:72, y:0 },
+    ];
+    function sigmoid(z){ return 1/(1+Math.exp(-z)); }
+    function loss(t0,t1){
+      return -applicants.reduce((s,a)=>{
+        const p=sigmoid(t0+t1*a.income);
+        return s+(a.y===1?Math.log(p+1e-10):Math.log(1-p+1e-10));
+      },0)/applicants.length;
+    }
+    function grad(t0,t1){
+      const g0=applicants.reduce((s,a)=>{
+        return s+sigmoid(t0+t1*a.income)-a.y;
+      },0)/applicants.length;
+      const g1=applicants.reduce((s,a)=>{
+        return s+(sigmoid(t0+t1*a.income)-a.y)*a.income;
+      },0)/applicants.length;
+      return [g0,g1];
+    }
+
+    const canvas = document.getElementById('contour-canvas');
+    const ctx = canvas.getContext('2d');
+
+    const t0Min=-6, t0Max=2;
+    const t1Min=-0.1, t1Max=0.15;
+    let clickT0 = -2.5, clickT1 = 0.05;
+
+    function canvasToTheta(cx,cy){
+      const W=canvas.width, H=canvas.height, pad=30;
+      const t0 = t0Min + (cx-pad)/(W-2*pad)*(t0Max-t0Min);
+      const t1 = t1Max - (cy-pad)/(H-2*pad)*(t1Max-t1Min);
+      return [t0,t1];
+    }
+    function thetaToCanvas(t0,t1){
+      const W=canvas.width, H=canvas.height, pad=30;
+      const cx = pad+(t0-t0Min)/(t0Max-t0Min)*(W-2*pad);
+      const cy = pad+(t1Max-t1)/(t1Max-t1Min)*(H-2*pad);
+      return [cx,cy];
+    }
+
+    function drawContour() {
+      const W=canvas.width, H=canvas.height, pad=30;
+      ctx.clearRect(0,0,W,H);
+
+      // Compute loss grid
+      const res=60;
+      const lossGrid=[];
+      let lMin=Infinity, lMax=-Infinity;
+      for(let i=0;i<=res;i++){
+        lossGrid.push([]);
+        for(let j=0;j<=res;j++){
+          const t0=t0Min+(t0Max-t0Min)*i/res;
+          const t1=t1Min+(t1Max-t1Min)*j/res;
+          const l=loss(t0,t1);
+          lossGrid[i].push(l);
+          if(l<lMin)lMin=l; if(l>lMax)lMax=l;
+        }
+      }
+
+      // Draw as coloured tiles
+      const tw=(W-2*pad)/res, th=(H-2*pad)/res;
+      for(let i=0;i<res;i++){
+        for(let j=0;j<res;j++){
+          const l=(lossGrid[i][j]+lossGrid[i+1][j]+lossGrid[i][j+1]+lossGrid[i+1][j+1])/4;
+          const t=(l-lMin)/(lMax-lMin);
+          const r=Math.round(13+t*180), g=Math.round(17+t*20), b=Math.round(23+t*180);
+          const blue=Math.round(23+(1-t)*200);
+          ctx.fillStyle=`rgb(${Math.round(13+t*100)},${Math.round(17+t*30)},${Math.round(23+(1-t)*160)})`;
+          const cx=pad+i*tw, cy=pad+(res-1-j)*th;
+          ctx.fillRect(cx,cy,tw+1,th+1);
+        }
+      }
+
+      // Contour lines
+      const nContours=8;
+      for(let c=1;c<nContours;c++){
+        const lv=lMin+c*(lMax-lMin)/nContours;
+        ctx.strokeStyle=`rgba(255,255,255,0.15)`; ctx.lineWidth=1;
+        for(let i=0;i<res;i++){
+          for(let j=0;j<res;j++){
+            const l00=lossGrid[i][j], l10=lossGrid[i+1][j];
+            const l01=lossGrid[i][j+1], l11=lossGrid[i+1][j+1];
+            const crosses=[
+              [l00,l10],[l10,l11],[l11,l01],[l01,l00]
+            ].filter(([a,b])=>(a<lv)!==(b<lv));
+            if(crosses.length>=2){
+              const cx0=pad+i*tw, cy0=pad+(res-j)*th;
+              ctx.beginPath(); ctx.moveTo(cx0,cy0); ctx.lineTo(cx0+tw,cy0); ctx.stroke();
+            }
+          }
+        }
+      }
+
+      // Axes labels
+      ctx.fillStyle='#6b7c90'; ctx.font='10px IBM Plex Mono'; ctx.textAlign='center';
+      [t0Min,-4,-2,0,t0Max].forEach(v=>{
+        const [cx]=thetaToCanvas(v,t1Min);
+        ctx.fillText(v.toFixed(0), cx, H-4);
+      });
+      ctx.save(); ctx.translate(10,H/2); ctx.rotate(-Math.PI/2);
+      ctx.fillText('θ₁ (income)', 0,0); ctx.restore();
+      ctx.fillText('θ₀ (bias)', W/2, H-4+14);
+
+      // Gradient arrow at clicked point
+      const [ct0,ct1]=thetaToCanvas(clickT0,clickT1);
+      const [g0,g1]=grad(clickT0,clickT1);
+      const gMag=Math.sqrt(g0*g0+g1*g1);
+      const scale=30/Math.max(gMag,0.01);
+      const dt0dx=(t0Max-t0Min)/(W-2*pad);
+      const dt1dy=(t1Max-t1Min)/(H-2*pad);
+      const arrowDx=g0/dt0dx*scale/60;
+      const arrowDy=-g1/dt1dy*scale/60;
+
+      // Clicked point
+      ctx.beginPath(); ctx.arc(ct0,ct1,6,0,Math.PI*2);
+      ctx.fillStyle='#c9a45c'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.fill(); ctx.stroke();
+
+      // Arrow
+      const ex=ct0+arrowDx*40, ey=ct1+arrowDy*40;
+      ctx.strokeStyle='#c9a45c'; ctx.lineWidth=2.5;
+      ctx.beginPath(); ctx.moveTo(ct0,ct1); ctx.lineTo(ex,ey); ctx.stroke();
+      // Arrowhead
+      const angle=Math.atan2(ey-ct1,ex-ct0);
+      ctx.beginPath();
+      ctx.moveTo(ex,ey);
+      ctx.lineTo(ex-10*Math.cos(angle-0.4),ey-10*Math.sin(angle-0.4));
+      ctx.lineTo(ex-10*Math.cos(angle+0.4),ey-10*Math.sin(angle+0.4));
+      ctx.closePath();
+      ctx.fillStyle='#c9a45c'; ctx.fill();
+
+      const L=loss(clickT0,clickT1);
+      document.getElementById('t0-out').textContent=clickT0.toFixed(3);
+      document.getElementById('t1-out').textContent=clickT1.toFixed(4);
+      document.getElementById('g0-out').textContent=g0.toFixed(4);
+      document.getElementById('g1-out').textContent=g1.toFixed(4);
+    }
+
+    canvas.addEventListener('click', e=>{
+      const rect=canvas.getBoundingClientRect();
+      const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
+      const cx=(e.clientX-rect.left)*scaleX;
+      const cy=(e.clientY-rect.top)*scaleY;
+      [clickT0,clickT1]=canvasToTheta(cx,cy);
+      drawContour();
+    });
+
+    drawContour();
+  </script>
+</body>
+</html>

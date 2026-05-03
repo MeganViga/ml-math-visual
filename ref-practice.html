@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Matrix → Row Echelon Form</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./ref-styles.css" />
+  </head>
+  <body>
+  <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li><li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html">3</a></li><li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li><li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li><li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li><li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li><li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li><li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html" class="active">REF ↗</a></li>
+    </ul>
+  </nav>
+    <div class="page">
+
+      <!-- ① Header -->
+      <header class="header">
+        <h1>Matrix → Row Echelon Form</h1>
+        <p class="lede">
+          Generate a random matrix, apply your own row operations with exact
+          fractions, then check your result. Hints and a reference solution stay
+          hidden until you ask for them.
+        </p>
+      </header>
+
+      <!-- ② Setup: matrix dimensions + generate -->
+      <section class="card setup-card" aria-label="Matrix setup">
+        <div class="difficulty-group" role="group" aria-label="Difficulty">
+          <button type="button" class="btn btn-diff" data-level="easy">Easy</button>
+          <button type="button" class="btn btn-diff btn-diff--active" data-level="medium">Medium</button>
+          <button type="button" class="btn btn-diff" data-level="hard">Hard</button>
+          <button type="button" class="btn btn-diff" data-level="custom">Custom</button>
+          <button type="button" class="btn btn-diff" data-level="manual">Enter my own</button>
+        </div>
+
+        <label class="field-label checkbox-label rref-toggle">
+          <input type="checkbox" id="rref" class="checkbox-input" />
+          <span>Target RREF</span>
+        </label>
+
+        <div class="setup-fields" id="custom-fields">
+          <label class="field-label">
+            Rows
+            <input type="number" id="rows" min="2" max="8" value="3" class="num-input" />
+          </label>
+          <label class="field-label">
+            Columns
+            <input type="number" id="cols" min="2" max="8" value="4" class="num-input" />
+          </label>
+          <label class="field-label">
+            Range (±)
+            <input type="number" id="range" min="1" value="9" class="num-input" />
+          </label>
+        </div>
+
+        <!-- Manual matrix entry (shown only in "Enter my own" mode) -->
+        <div id="manual-entry" hidden>
+          <div class="manual-size-row">
+            <label class="field-label">
+              Rows
+              <input type="number" id="manual-rows" min="2" max="8" value="3" class="num-input" />
+            </label>
+            <label class="field-label">
+              Columns
+              <input type="number" id="manual-cols" min="2" max="8" value="4" class="num-input" />
+            </label>
+          </div>
+          <p class="syntax-hint" style="margin-bottom:0.5rem">
+            Enter integers or fractions like <code>3/4</code> or <code>-5/2</code>.
+            Last column is the right-hand side (augmented matrix).
+          </p>
+          <div id="manual-grid" class="manual-grid" role="grid" aria-label="Matrix entry grid"></div>
+          <p id="manual-error" class="op-error" aria-live="polite"></p>
+          <button type="button" id="btn-use-matrix" class="btn btn-primary" style="margin-top:0.6rem">
+            ✓ Use this matrix
+          </button>
+        </div>
+
+        <button type="button" id="btn-new" class="btn btn-primary btn-generate">
+          ⟳ New random matrix
+        </button>
+      </section>
+
+      <!-- ③ Matrices: Original | Your work  (Answer revealed separately) -->
+      <section class="card matrix-card" aria-label="Matrices">
+        <div class="matrix-grid">
+          <div class="matrix-block">
+            <h2 class="matrix-label">Original</h2>
+            <div id="original" class="matrix-wrap" aria-live="polite"></div>
+          </div>
+          <div class="matrix-block matrix-block--work">
+            <h2 class="matrix-label">Your work</h2>
+            <div id="work" class="matrix-wrap" aria-live="polite"></div>
+          </div>
+        </div>
+        <details class="answer-details">
+          <summary class="answer-summary">Show answer (REF / RREF)</summary>
+          <div id="final" class="matrix-wrap matrix-wrap--muted" aria-live="polite"></div>
+        </details>
+      </section>
+
+      <!-- ⑤ Practice: row-op input + check + Your steps -->
+      <section class="card practice-card" aria-label="Your row operations">
+        <h2 class="card-heading">Your row operations</h2>
+
+        <p class="syntax-hint">
+          <code>R2 → R2 − 2R1</code> ·
+          <code>R2 ← R2 − (59/31)R1</code> ·
+          <code>R1 ↔ R2</code> ·
+          <code>R3 = 3R3</code><br />
+          Arrows <code>→</code> <code>←</code> <code>-></code> and <code>=</code> are all accepted.
+          Separate multiple operations with <code>;</code> — they apply together and undo together.
+        </p>
+
+        <div class="op-row">
+          <input
+            type="text"
+            id="row-op-input"
+            class="op-input"
+            inputmode="text"
+            autocomplete="off"
+            autocorrect="off"
+            spellcheck="false"
+            placeholder="e.g.  R2 → R2 − 2R1 ; R3 → R3 − 3R1"
+            aria-label="Row operation"
+          />
+          <button type="button" id="btn-apply-op" class="btn btn-primary">Apply</button>
+          <button type="button" id="btn-undo-op" class="btn btn-ghost" disabled>Undo</button>
+          <button type="button" id="btn-reset-work" class="btn btn-ghost" disabled>Reset</button>
+        </div>
+
+        <p id="row-op-error" class="error-msg" role="alert"></p>
+
+        <div class="check-row">
+          <button type="button" id="btn-check-ref" class="btn btn-outline" disabled>
+            Check REF
+          </button>
+          <button type="button" id="btn-check-rref" class="btn btn-outline" disabled>
+            Check RREF
+          </button>
+          <button type="button" id="btn-show-rank" class="btn btn-outline" disabled>
+            Show Rank
+          </button>
+          <span id="check-result" class="check-result" role="status"></span>
+        </div>
+
+        <!-- Your steps live inline, right below the input -->
+        <div class="your-steps-block">
+          <h3 class="steps-heading">Your steps</h3>
+          <ol id="user-steps" class="steps-list"></ol>
+          <p class="steps-empty" id="user-steps-empty">No steps yet — apply an operation above.</p>
+        </div>
+      </section>
+
+      <!-- ⑥ Reference solution toggle -->
+      <div class="reveal-strip" role="group" aria-label="Reveal reference solution">
+        <span class="reveal-strip__label">Hints</span>
+        <label class="reveal-toggle">
+          <input type="checkbox" id="show-ref-steps" class="checkbox-input" />
+          <span>Show reference solution &amp; timeline</span>
+        </label>
+      </div>
+
+      <!-- ⑦ Reference path (slider + chain + heatmap + steps) — hidden until revealed -->
+      <section
+        id="ref-timeline-panel"
+        class="card timeline-card"
+        hidden
+        aria-label="Reference elimination"
+      >
+        <h2 class="card-heading">Reference path</h2>
+        <p class="card-sub">
+          Use the buttons or drag the slider. Click any node to jump to that step.
+        </p>
+
+        <!-- Step controls (were previously in Matrix options) -->
+        <div class="step-controls">
+          <button type="button" id="btn-step" class="btn btn-primary" disabled>
+            Next step ›
+          </button>
+          <button type="button" id="btn-solve" class="btn btn-outline">
+            Show all
+          </button>
+          <button type="button" id="btn-reset" class="btn btn-ghost" disabled>
+            Reset
+          </button>
+        </div>
+
+        <!-- Slider -->
+        <div class="slider-row">
+          <span class="slider-label">Step <strong id="timeline-label">0 / 0</strong></span>
+          <input
+            type="range"
+            id="timeline-slider"
+            class="step-slider"
+            min="0"
+            max="0"
+            value="0"
+            aria-label="Step slider"
+          />
+        </div>
+
+        <!-- Current op label -->
+        <p id="timeline-op" class="current-op" aria-live="polite"></p>
+
+        <!-- SVG chain -->
+        <div class="chain-scroll">
+          <svg
+            id="timeline-svg"
+            class="chain-svg"
+            role="img"
+            aria-label="Chain of elimination states"
+          ></svg>
+        </div>
+
+        <!-- Heatmap + line plot side by side on wider screens -->
+        <div class="visuals-row">
+          <div class="heatmap-block">
+            <h3 class="vis-label">Matrix at this step</h3>
+            <div id="timeline-heatmap" class="heatmap"></div>
+          </div>
+          <div id="line-plot-wrap" class="lineplot-block" hidden>
+            <h3 class="vis-label">Row picture (2 equations · 2 unknowns)</h3>
+            <canvas
+              id="line-plot-canvas"
+              class="lineplot-canvas"
+              width="400"
+              height="280"
+              aria-label="Two lines: ax + by = c for each row"
+            ></canvas>
+          </div>
+          <div id="plane-plot-wrap" class="lineplot-block" hidden>
+            <h3 class="vis-label">Row picture (3 equations · 3 unknowns)</h3>
+            <p class="vis-sublabel">Drag to rotate · scroll to zoom</p>
+            <canvas
+              id="plane-plot-canvas"
+              class="lineplot-canvas"
+              width="400"
+              height="320"
+              aria-label="Three planes in 3D space"
+            ></canvas>
+            <p class="plane-legend">
+              <span class="leg-dot" style="background:#5b9fd4"></span>R1
+              <span class="leg-dot" style="background:#c9a45c"></span>R2
+              <span class="leg-dot" style="background:#5bc478"></span>R3
+            </p>
+          </div>
+        </div>
+
+        <!-- Reference steps list -->
+        <div class="ref-steps-block">
+          <h3 class="vis-label">Reference solution</h3>
+          <ol id="steps" class="steps-list steps-list--ref"></ol>
+          <p id="step-hint" class="hint-text" aria-live="polite">
+            Press "Next step" to reveal operations one at a time.
+          </p>
+        </div>
+      </section>
+
+      <footer class="footer">
+        Open <code>index.html</code> locally or push to
+        <a href="https://pages.github.com/">GitHub Pages</a>.
+      </footer>
+
+    </div>
+    <!-- Three.js for 3D plane visualisation (3×4 matrices) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="./ref-app.js" defer></script>
+  </body>
+</html>

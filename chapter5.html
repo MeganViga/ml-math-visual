@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chapter 5 — Rank & Linear Dependence | Math for ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .corr-slider-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin: 1rem 0;
+    }
+    .corr-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .corr-row label { font-size: .85rem; color: var(--muted); min-width: 9rem; }
+    .corr-row input[type=range] { flex: 1; accent-color: var(--accent); }
+    .corr-val { font-family: var(--mono); font-size: .9rem; min-width: 3.5rem; color: var(--text); }
+
+    .rank-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      font-family: var(--mono);
+      font-size: 1.1rem;
+      font-weight: 700;
+      padding: .4rem .9rem;
+      border-radius: var(--radius-sm);
+      border: 2px solid;
+      transition: all .3s;
+    }
+    .rank-full  { color: var(--green); border-color: var(--green-dim); background: rgba(74,222,128,.1); }
+    .rank-low   { color: var(--danger); border-color: var(--danger); background: rgba(248,113,113,.1); }
+
+    .det-display {
+      font-family: var(--mono);
+      font-size: 1rem;
+      color: var(--muted);
+      margin: .4rem 0;
+    }
+    .det-display span { color: var(--text); }
+    .det-display.bad span { color: var(--danger); }
+
+    .hm-grid {
+      display: inline-grid;
+      gap: 3px;
+      padding: .4rem;
+      background: var(--bg);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+    .hm-cell {
+      width: 5rem;
+      height: 2.6rem;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: .78rem;
+      color: rgba(255,255,255,.9);
+      text-shadow: 0 1px 3px rgba(0,0,0,.7);
+      transition: background .3s;
+    }
+
+    .feature-scatter {
+      width: 100%;
+      max-width: 460px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #0a0f18;
+      display: block;
+    }
+
+    .two-col-vis {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    @media(max-width:640px){ .two-col-vis { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+    <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li>
+      <li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html">3</a></li>
+      <li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html" class="active">5</a></li>
+      <li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li>
+      <li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li>
+      <li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li>
+      <li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li>
+      <li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="chapter-hero">
+      <div class="chapter-eyebrow">Chapter 5 of 19</div>
+      <h1 class="chapter-title">Rank &amp; Linear Dependence</h1>
+      <p class="chapter-intro">
+        Ch 4 solved our loan model — but what if <em>income</em> and <em>age</em> are highly correlated
+        (older applicants tend to earn more)? Then one feature is just a scaled copy of the other,
+        XᵀX becomes singular, and the Normal Equation breaks. Drag the slider to see exactly when and why.
+      </p>
+    </div>
+
+    <!-- ── What is rank ─────────────────────────────────────────── -->
+    <h2 class="section-heading">What does "rank" mean?</h2>
+    <div class="card">
+      <p style="font-size:.9rem;color:var(--muted)">
+        The <strong style="color:var(--text)">rank</strong> of a matrix is the number of
+        <em>linearly independent</em> rows (or columns) — rows that cannot be written as combinations of others.
+      </p>
+      <ul style="font-size:.88rem;color:var(--muted);margin:.8rem 0 0 1.2rem;line-height:2">
+        <li><strong style="color:var(--text)">Full rank</strong>: all columns independent → unique solution → Normal Equation works ✓</li>
+        <li><strong style="color:var(--text)">Rank deficient</strong>: some columns are combinations of others → no unique solution → Normal Equation fails ✗</li>
+      </ul>
+    </div>
+
+    <!-- ── Interactive correlation demo ─────────────────────────── -->
+    <h2 class="section-heading">Interactive: feature correlation → rank loss</h2>
+    <p class="section-sub">
+      Imagine we add a third feature "age_scaled" = age × 1.2, which is perfectly correlated with age.
+      Drag the slider to make this feature more or less correlated with income.
+      Watch what happens to the matrix rank and the determinant of XᵀX.
+    </p>
+
+    <div class="card">
+      <div class="corr-slider-wrap">
+        <div class="corr-row">
+          <label>Feature correlation</label>
+          <input type="range" id="corr-slider" min="0" max="1" step="0.01" value="0" />
+          <span class="corr-val" id="corr-val">0.00</span>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:1.5rem;flex-wrap:wrap;align-items:center;margin-top:1rem">
+        <div>
+          <div class="mat-label">rank(X)</div>
+          <div class="rank-indicator rank-full" id="rank-ind">rank = 3</div>
+        </div>
+        <div>
+          <div class="mat-label">det(XᵀX)</div>
+          <div class="det-display" id="det-display"><span id="det-val">—</span></div>
+        </div>
+        <div id="singular-warn" style="display:none">
+          <div class="insight" style="border-color:var(--danger);background:rgba(248,113,113,.08);margin:0;padding:.6rem .9rem">
+            <strong style="color:var(--danger)">⚠ Singular!</strong> XᵀX cannot be inverted.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Feature scatter ──────────────────────────────────────── -->
+    <h2 class="section-heading">Visualising correlation</h2>
+    <p class="section-sub">
+      Left: income ($k) vs default — our loan data. Right: age vs income.
+      As correlation → 1, age becomes a scaled copy of income — the right plot collapses to a perfect line.
+      That column of X is no longer independent, and XᵀX becomes singular.
+    </p>
+
+    <div class="two-col-vis">
+      <div>
+        <div class="mat-label" style="margin-bottom:.4rem">Income ($k) vs Default (0/1)</div>
+        <svg class="feature-scatter" id="scatter-orig" viewBox="0 0 300 220"></svg>
+      </div>
+      <div>
+        <div class="mat-label" style="margin-bottom:.4rem">Rooms vs Size (sqft) — when correlated</div>
+        <svg class="feature-scatter" id="scatter-corr" viewBox="0 0 300 220"></svg>
+      </div>
+    </div>
+
+    <!-- ── XᵀX heatmap ───────────────────────────────────────────── -->
+    <h2 class="section-heading" style="margin-top:1.5rem">XᵀX heatmap — watch it degrade</h2>
+    <p class="section-sub">
+      As the two features become identical, two columns of X become identical,
+      making two rows of XᵀX become proportional. The matrix becomes singular.
+    </p>
+    <div class="hm-grid" id="xtx-heatmap" style="grid-template-columns:repeat(3,auto)"></div>
+
+    <div class="insight" style="margin-top:1.2rem">
+      <strong>Rank in terms of row operations:</strong>
+      Rank = number of non-zero rows after row reduction (REF).
+      A singular matrix has at least one entirely zero row in its REF —
+      exactly what you see when you row-reduce a rank-deficient XᵀX.
+    </div>
+
+    <!-- ── Practical consequences ────────────────────────────────── -->
+    <h2 class="section-heading">Practical consequences in ML</h2>
+    <div class="card">
+      <table style="width:100%;border-collapse:collapse;font-size:.88rem">
+        <thead>
+          <tr>
+            <th style="background:var(--surface2);color:var(--muted);padding:.5rem .8rem;border:1px solid var(--border);text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Situation</th>
+            <th style="background:var(--surface2);color:var(--muted);padding:.5rem .8rem;border:1px solid var(--border);text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Matrix rank</th>
+            <th style="background:var(--surface2);color:var(--muted);padding:.5rem .8rem;border:1px solid var(--border);text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Effect on model</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:.5rem .8rem;border:1px solid var(--border);color:var(--text)">All features independent</td><td style="padding:.5rem .8rem;border:1px solid var(--border);color:var(--green);font-family:var(--mono)">Full rank</td><td style="padding:.5rem .8rem;border:1px solid var(--border);color:var(--muted)">Unique θ — model learns correctly</td></tr>
+          <tr><td style="padding:.5rem .8rem;border:1px solid var(--border);color:var(--text)">Two features highly correlated</td><td style="padding:.5rem .8rem;border:1px solid var(--border);color:var(--gold);font-family:var(--mono)">Nearly rank deficient</td><td style="padding:.5rem .8rem;border:1px solid var(--border);color:var(--muted)">θ unstable, large values, high variance</td></tr>
+          <tr><td style="padding:.5rem .8rem;border:1px solid var(--border);color:var(--text)">Duplicate column (r=1)</td><td style="padding:.5rem .8rem;border:1px solid var(--border);color:var(--danger);font-family:var(--mono)">Rank deficient</td><td style="padding:.5rem .8rem;border:1px solid var(--border);color:var(--muted)">Normal Equation fails — infinite solutions</td></tr>
+          <tr><td style="padding:.5rem .8rem;border:1px solid var(--border);color:var(--text)">More features than samples</td><td style="padding:.5rem .8rem;border:1px solid var(--border);color:var(--danger);font-family:var(--mono)">Rank = m &lt; n</td><td style="padding:.5rem .8rem;border:1px solid var(--border);color:var(--muted)">Underdetermined — overfit perfectly</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="insight insight-gold">
+      <strong>Fix: Regularisation (Ridge Regression)</strong>
+      Add λI to XᵀX: solve <code>(XᵀX + λI)θ = Xᵀy</code>.
+      Since λ &gt; 0, the matrix is always full rank — invertible even with correlated features.
+      This is the most common practical solution.
+    </div>
+
+    <div class="insight" style="border-color:var(--accent)">
+      <strong>Story so far:</strong>
+      Correlated features (income &amp; age) can break the Normal Equation by reducing matrix rank.
+      Regularisation helps — but inverting large matrices is expensive regardless.
+      <br/>
+      <strong>Next:</strong> What if we never invert the matrix at all? → Chapter 6: Gradient Descent
+    </div>
+
+    <div class="chapter-nav">
+      <a href="./chapter4.html" class="btn">← Chapter 4</a>
+      <a href="./chapter6.html" class="btn btn-primary">Chapter 6: Gradient Descent →</a>
+    </div>
+  </div>
+
+  <script>
+    const houses = [35,55,42,80,28];   // income ($k)
+    const prices = [1,0,1,0,1];         // default (0/1)
+    const rooms  = [28,45,32,52,24];    // age
+
+    // ── SVG helpers ───────────────────────────────────────────────
+    function ns(tag,a={}){
+      const e=document.createElementNS('http://www.w3.org/2000/svg',tag);
+      for(const[k,v]of Object.entries(a))e.setAttribute(k,v);
+      return e;
+    }
+
+    function drawScatter(svgId, xs, ys, xLabel, yLabel, color='#5b9fd4') {
+      const svg = document.getElementById(svgId);
+      svg.replaceChildren();
+      const VW=300,VH=220,P={l:38,r:10,t:10,b:32};
+      const xMin=Math.min(...xs)*0.9, xMax=Math.max(...xs)*1.1;
+      const yMin=Math.min(...ys)*0.9, yMax=Math.max(...ys)*1.1;
+      const sx=x=>P.l+(x-xMin)/(xMax-xMin)*(VW-P.l-P.r);
+      const sy=y=>P.t+(1-(y-yMin)/(yMax-yMin))*(VH-P.t-P.b);
+
+      // grid
+      [0.25,0.5,0.75].forEach(t=>{
+        const gx=xMin+t*(xMax-xMin), gy=yMin+t*(yMax-yMin);
+        svg.appendChild(ns('line',{x1:sx(gx),y1:P.t,x2:sx(gx),y2:VH-P.b,stroke:'#1d2d40','stroke-width':1}));
+        svg.appendChild(ns('line',{x1:P.l,y1:sy(gy),x2:VW-P.r,y2:sy(gy),stroke:'#1d2d40','stroke-width':1}));
+      });
+      // axes
+      svg.appendChild(ns('line',{x1:P.l,y1:VH-P.b,x2:VW-P.r,y2:VH-P.b,stroke:'#3d4f66','stroke-width':1.5}));
+      svg.appendChild(ns('line',{x1:P.l,y1:P.t,x2:P.l,y2:VH-P.b,stroke:'#3d4f66','stroke-width':1.5}));
+      // labels
+      const xl=ns('text',{x:(P.l+VW-P.r)/2,y:VH-2,'text-anchor':'middle',fill:'#5a6a80','font-size':10,'font-family':'IBM Plex Sans,sans-serif'});
+      xl.textContent=xLabel; svg.appendChild(xl);
+      const yl=ns('text',{x:10,y:(P.t+VH-P.b)/2,'text-anchor':'middle',fill:'#5a6a80','font-size':10,'font-family':'IBM Plex Sans,sans-serif',transform:`rotate(-90,10,${(P.t+VH-P.b)/2})`});
+      yl.textContent=yLabel; svg.appendChild(yl);
+      // points
+      xs.forEach((x,i)=>{
+        svg.appendChild(ns('circle',{cx:sx(x),cy:sy(ys[i]),r:6,fill:color,stroke:'#0a0f18','stroke-width':1.5}));
+      });
+    }
+
+    // ── Rank computation (simple: count non-zero rows in REF) ─────
+    function rref3x3(M) {
+      const A = M.map(r=>[...r]);
+      let lead=0;
+      for(let r=0;r<3;r++){
+        if(lead>=3)break;
+        let i=r;
+        while(Math.abs(A[i][lead])<1e-9){i++;if(i===3){i=r;lead++;if(lead===3)return A;}}
+        [A[i],A[r]]=[A[r],A[i]];
+        const p=A[r][lead];
+        A[r]=A[r].map(v=>v/p);
+        for(let k=0;k<3;k++){if(k===r)continue;const f=A[k][lead];A[k]=A[k].map((v,j)=>v-f*A[r][j]);}
+        lead++;
+      }
+      return A;
+    }
+    function matRank(M){ return rref3x3(M).filter(r=>r.some(v=>Math.abs(v)>1e-9)).length; }
+    function det3(M){
+      return M[0][0]*(M[1][1]*M[2][2]-M[1][2]*M[2][1])
+            -M[0][1]*(M[1][0]*M[2][2]-M[1][2]*M[2][0])
+            +M[0][2]*(M[1][0]*M[2][1]-M[1][1]*M[2][0]);
+    }
+    function heatColor(v,max){
+      if(max<1e-10)return'#1d2d40';
+      const t=Math.max(-1,Math.min(1,v/max));
+      if(t>0)return`rgb(${Math.round(20+t*40)},${Math.round(80+t*80)},${Math.round(140+t*80)})`;
+      return`rgb(${Math.round(100+(-t)*80)},${Math.round(40)},${Math.round(40)})`;
+    }
+
+    function update() {
+      const corr = parseFloat(document.getElementById('corr-slider').value);
+      document.getElementById('corr-val').textContent = corr.toFixed(2);
+
+      // Build X with 3 columns: [1, income, corr_feature]
+      // corr_feature = corr * income + (1-corr) * age (real values when corr=0, clone when corr=1)
+      const X = houses.map((s,i)=>[1, s, corr*s + (1-corr)*rooms[i]]);
+      const Xt = X[0].map((_,j)=>X.map(r=>r[j]));
+      const XtX = Xt.map(r=>Xt[0].map((_,j)=>r.reduce((s,v,k)=>s+v*Xt[j][k],0)));
+      // fix: proper XtX
+      const XtXm = [];
+      for(let i=0;i<3;i++){
+        XtXm.push([]);
+        for(let j=0;j<3;j++){
+          XtXm[i].push(X.reduce((s,r)=>s+r[i]*r[j],0));
+        }
+      }
+
+      const rank = matRank(XtXm);
+      const d = det3(XtXm);
+
+      // rank indicator
+      const ri = document.getElementById('rank-ind');
+      ri.textContent = `rank = ${rank}`;
+      ri.className = 'rank-indicator ' + (rank >= 3 ? 'rank-full' : 'rank-low');
+
+      // det
+      const dd = document.getElementById('det-display');
+      const dv = document.getElementById('det-val');
+      dv.textContent = d.toExponential(2);
+      dd.className = 'det-display' + (Math.abs(d) < 1e6 ? ' bad' : '');
+
+      // singular warning
+      document.getElementById('singular-warn').style.display = (corr >= 0.98) ? 'block' : 'none';
+
+      // heatmap
+      const hm = document.getElementById('xtx-heatmap');
+      hm.replaceChildren();
+      const maxV = Math.max(...XtXm.flat().map(Math.abs));
+      XtXm.forEach(row=>row.forEach(v=>{
+        const d2=document.createElement('div');
+        d2.className='hm-cell';
+        d2.style.background=heatColor(v,maxV);
+        d2.textContent=v>1000?Math.round(v/1000)+'k':Math.round(v);
+        hm.appendChild(d2);
+      }));
+
+      // scatter: size vs price (stays fixed)
+      drawScatter('scatter-orig', houses, prices, 'income ($k)', 'default (0/1)', '#5b9fd4');
+
+      // scatter: corr feature vs size
+      const feat3 = houses.map((s,i)=>corr*s+(1-corr)*rooms[i]);
+      drawScatter('scatter-corr', houses, feat3, 'income ($k)', 'age (simulated corr)', '#c9a45c');
+    }
+
+    document.getElementById('corr-slider').addEventListener('input', update);
+    update();
+  </script>
+</body>
+</html>

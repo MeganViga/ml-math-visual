@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chapter 7 — PCA | Math for ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    #pca-canvas {
+      display: block;
+      width: 100%;
+      max-width: 560px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #0a0f18;
+    }
+
+    .variance-bar-wrap {
+      background: var(--surface2);
+      border-radius: 4px;
+      height: 10px;
+      overflow: hidden;
+      flex: 1;
+    }
+    .variance-bar {
+      height: 100%;
+      border-radius: 4px;
+      transition: width .4s;
+    }
+
+    .ev-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: .7rem 1rem;
+      font-family: var(--mono);
+      font-size: .88rem;
+    }
+    .ev-lbl { font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.3rem; }
+    .ev-val { font-size:1.1rem;font-weight:700; }
+
+    .projection-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    @media(max-width:600px){ .projection-grid { grid-template-columns: 1fr; } }
+
+    .proj-svg {
+      display: block;
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #0a0f18;
+    }
+
+    .corr-ctrl {
+      display:flex;align-items:center;gap:.8rem;margin:.5rem 0;
+    }
+    .corr-ctrl label { font-size:.82rem;color:var(--muted);min-width:8rem; }
+    .corr-ctrl input[type=range] { flex:1;accent-color:var(--accent); }
+    .corr-ctrl .badge { font-family:var(--mono);font-size:.85rem;min-width:3rem;color:var(--text); }
+
+    .step-tabs {
+      display: flex;
+      gap: .4rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .step-tab {
+      padding: .35rem .8rem;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: .8rem;
+      cursor: pointer;
+      transition: all .12s;
+    }
+    .step-tab.active {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+    <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li>
+      <li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html">3</a></li>
+      <li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li>
+      <li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html" class="active">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li>
+      <li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li>
+      <li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li>
+      <li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li>
+      <li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="chapter-hero">
+      <div class="chapter-eyebrow">Chapter 7 of 19</div>
+      <h1 class="chapter-title">PCA — Finding the Best Axes</h1>
+      <p class="chapter-intro">
+        In Ch 5 we saw that correlated features (income &amp; age) can make XᵀX singular.
+        PCA asks a deeper question: if income and age carry similar information, can we merge them
+        into one new axis that captures <em>most</em> of the variance? That axis is the first eigenvector of XᵀX.
+      </p>
+    </div>
+
+    <!-- ── Motivation ─────────────────────────────────────────── -->
+    <h2 class="section-heading">Why do we need new axes?</h2>
+    <div class="card">
+      <p style="font-size:.9rem;color:var(--muted);margin-bottom:.8rem">
+        Think of our two loan applicant features: <strong style="color:var(--text)">income ($k)</strong> and
+        <strong style="color:var(--text)">age</strong>. In our dataset, higher-income applicants tend to be older —
+        so most variation lies along a <em>diagonal</em> between the two axes, not along either axis alone.
+        PCA finds that diagonal and makes it the new X-axis.
+      </p>
+      <ul style="font-size:.88rem;color:var(--muted);margin-left:1.2rem;line-height:2">
+        <li><strong style="color:var(--text)">PC1</strong> — the direction of <em>maximum</em> variance (captures the income+age trend)</li>
+        <li><strong style="color:var(--text)">PC2</strong> — perpendicular to PC1 (captures residual variation)</li>
+        <li>Project data onto PC1 only → 2 correlated features compressed to 1, minimal information loss</li>
+      </ul>
+    </div>
+
+    <!-- ── Interactive scatter ────────────────────────────────── -->
+    <h2 class="section-heading">Step through PCA visually</h2>
+    <p class="section-sub">
+      Adjust feature correlation, then step through each PCA stage.
+    </p>
+
+    <div class="corr-ctrl">
+      <label>Feature correlation</label>
+      <input type="range" id="pca-corr" min="0" max="0.98" step="0.02" value="0.7" />
+      <span class="badge" id="pca-corr-val">0.70</span>
+    </div>
+
+    <div class="step-tabs">
+      <div class="step-tab active" data-step="0">① Raw data</div>
+      <div class="step-tab" data-step="1">② Centred</div>
+      <div class="step-tab" data-step="2">③ Eigenvectors</div>
+      <div class="step-tab" data-step="3">④ Projected (PC1)</div>
+    </div>
+
+    <canvas id="pca-canvas" width="560" height="380"></canvas>
+
+    <div class="legend" style="margin-top:.6rem">
+      <span><span class="legend-dot" style="background:#5b9fd4"></span>Data points</span>
+      <span><span class="legend-dot" style="background:var(--accent);width:18px;height:3px;border-radius:0;vertical-align:middle"></span>PC1 (max variance)</span>
+      <span><span class="legend-dot" style="background:var(--gold);width:18px;height:3px;border-radius:0;vertical-align:middle"></span>PC2 (min variance)</span>
+      <span><span class="legend-dot" style="background:var(--green)"></span>Projected onto PC1</span>
+    </div>
+
+    <!-- ── Eigenvalues / variance explained ───────────────────── -->
+    <h2 class="section-heading">Variance explained by each component</h2>
+    <div class="card">
+      <div style="display:flex;flex-direction:column;gap:.7rem" id="variance-bars"></div>
+    </div>
+
+    <!-- ── Covariance matrix ───────────────────────────────────── -->
+    <h2 class="section-heading">The covariance matrix C = XᵀX / m</h2>
+    <p class="section-sub">
+      PCA computes eigenvectors of the covariance matrix. As correlation increases,
+      the off-diagonal entries grow — the matrix becomes less diagonal.
+    </p>
+
+    <div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:flex-start;margin:.5rem 0">
+      <div>
+        <div class="mat-label">Covariance matrix C (2×2)</div>
+        <div class="matrix-equation">
+          <div class="mat-block">
+            <div class="mat-bracket">[</div>
+            <div class="mat-grid" id="cov-grid" style="grid-template-columns:repeat(2,auto)"></div>
+            <div class="mat-bracket">]</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.6rem">
+        <div class="ev-card">
+          <div class="ev-lbl">Eigenvalue λ₁ (PC1)</div>
+          <div class="ev-val" id="ev1" style="color:var(--accent)">—</div>
+        </div>
+        <div class="ev-card">
+          <div class="ev-lbl">Eigenvalue λ₂ (PC2)</div>
+          <div class="ev-val" id="ev2" style="color:var(--gold)">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Before vs After projection ─────────────────────────── -->
+    <h2 class="section-heading">Before vs After — 2D → 1D projection</h2>
+    <p class="section-sub">
+      Left: original 2D data. Right: projected onto PC1 only (1D).
+      How much variance is preserved depends on how aligned your data is with PC1.
+    </p>
+
+    <div class="projection-grid">
+      <div>
+        <div class="mat-label" style="margin-bottom:.4rem">Original (2D)</div>
+        <svg class="proj-svg" id="proj-orig" viewBox="0 0 240 200"></svg>
+      </div>
+      <div>
+        <div class="mat-label" style="margin-bottom:.4rem">Projected onto PC1 (1D)</div>
+        <svg class="proj-svg" id="proj-1d" viewBox="0 0 240 200"></svg>
+      </div>
+    </div>
+
+    <div class="insight insight-green" style="margin-top:1.5rem">
+      <strong>PCA and linear algebra:</strong>
+      Eigenvectors of XᵀX are the principal components.
+      Eigenvalues tell you how much variance each component captures.
+      This is exactly the same XᵀX from the Normal Equation — repurposed for a different goal.
+    </div>
+
+    <div class="insight insight-gold">
+      <strong>In deep learning:</strong>
+      PCA is used for preprocessing (de-correlate inputs), visualising high-dimensional embeddings
+      (e.g. word vectors in 2D), and understanding what a neural network has learned.
+    </div>
+
+    <div class="insight" style="border-color:var(--accent)">
+      <strong>Story so far — the complete loan applicant default journey:</strong>
+      We started with 5 loan applicants (Ch 1), defined what "best fit" means (Ch 2), computed predictions as matrix
+      multiplication (Ch 3), solved for optimal θ exactly (Ch 4), saw when correlated features break the
+      solver (Ch 5), found θ without any matrix inversion (Ch 6), and compressed correlated features into
+      fewer dimensions (Ch 7). That is the full linear algebra backbone of Machine Learning.
+    </div>
+
+    <!-- ── Big picture ────────────────────────────────────────── -->
+    <h2 class="section-heading">The complete picture — all 7 chapters</h2>
+    <div class="card">
+      <table style="width:100%;border-collapse:collapse;font-size:.85rem">
+        <thead>
+          <tr>
+            <th style="background:var(--surface2);color:var(--muted);padding:.5rem .7rem;border:1px solid var(--border);text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em">Chapter</th>
+            <th style="background:var(--surface2);color:var(--muted);padding:.5rem .7rem;border:1px solid var(--border);text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em">Concept</th>
+            <th style="background:var(--surface2);color:var(--muted);padding:.5rem .7rem;border:1px solid var(--border);text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em">Matrix operation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:.4rem .7rem;border:1px solid var(--border);color:var(--text)">1. Data as a Matrix</td><td style="padding:.4rem .7rem;border:1px solid var(--border);color:var(--muted)">Feature engineering</td><td style="padding:.4rem .7rem;border:1px solid var(--border);font-family:var(--mono);color:var(--accent)">X ∈ ℝ^(m×n)</td></tr>
+          <tr><td style="padding:.4rem .7rem;border:1px solid var(--border);color:var(--text)">2. What ML Tries to Do</td><td style="padding:.4rem .7rem;border:1px solid var(--border);color:var(--muted)">Loss minimisation</td><td style="padding:.4rem .7rem;border:1px solid var(--border);font-family:var(--mono);color:var(--accent)">min ‖Xθ − y‖²</td></tr>
+          <tr><td style="padding:.4rem .7rem;border:1px solid var(--border);color:var(--text)">3. Prediction</td><td style="padding:.4rem .7rem;border:1px solid var(--border);color:var(--muted)">Forward pass</td><td style="padding:.4rem .7rem;border:1px solid var(--border);font-family:var(--mono);color:var(--accent)">ŷ = Xθ</td></tr>
+          <tr><td style="padding:.4rem .7rem;border:1px solid var(--border);color:var(--text)">4. Normal Equation</td><td style="padding:.4rem .7rem;border:1px solid var(--border);color:var(--muted)">Exact solution</td><td style="padding:.4rem .7rem;border:1px solid var(--border);font-family:var(--mono);color:var(--accent)">θ = (XᵀX)⁻¹Xᵀy</td></tr>
+          <tr><td style="padding:.4rem .7rem;border:1px solid var(--border);color:var(--text)">5. Rank &amp; Dependence</td><td style="padding:.4rem .7rem;border:1px solid var(--border);color:var(--muted)">Multicollinearity</td><td style="padding:.4rem .7rem;border:1px solid var(--border);font-family:var(--mono);color:var(--accent)">rank(X) &lt; n → singular</td></tr>
+          <tr><td style="padding:.4rem .7rem;border:1px solid var(--border);color:var(--text)">6. Gradient Descent</td><td style="padding:.4rem .7rem;border:1px solid var(--border);color:var(--muted)">Scalable training</td><td style="padding:.4rem .7rem;border:1px solid var(--border);font-family:var(--mono);color:var(--accent)">θ ← θ − α·∇L</td></tr>
+          <tr><td style="padding:.4rem .7rem;border:1px solid var(--border);color:var(--text)">7. PCA</td><td style="padding:.4rem .7rem;border:1px solid var(--border);color:var(--muted)">Dimensionality reduction</td><td style="padding:.4rem .7rem;border:1px solid var(--border);font-family:var(--mono);color:var(--accent)">eigvec(XᵀX)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="chapter-nav">
+      <a href="./chapter6.html" class="btn">← Chapter 6</a>
+      <a href="./index.html" class="btn btn-primary">Back to Home</a>
+      <a href="./ref-practice.html" class="btn btn-gold">Practice REF →</a>
+    </div>
+  </div>
+
+  <script>
+    // ── Generate correlated 2D data ────────────────────────────
+    function genData(corr, n = 30) {
+      const rng = (seed) => {
+        let s = seed;
+        return () => { s = (s * 16807 + 0) % 2147483647; return (s - 1) / 2147483646; };
+      };
+      const r = rng(42);
+      const pts = [];
+      for (let i = 0; i < n; i++) {
+        // Box-Muller
+        const u1 = r(), u2 = r();
+        const z0 = Math.sqrt(-2 * Math.log(u1 + 1e-12)) * Math.cos(2 * Math.PI * u2);
+        const z1 = Math.sqrt(-2 * Math.log(u2 + 1e-12)) * Math.cos(2 * Math.PI * u1);
+        const x = z0;
+        const y = corr * z0 + Math.sqrt(1 - corr * corr) * z1;
+        pts.push([x * 2, y * 2]);
+      }
+      return pts;
+    }
+
+    // ── PCA ────────────────────────────────────────────────────
+    function pca(pts) {
+      const n = pts.length;
+      const mx = pts.reduce((s, p) => s + p[0], 0) / n;
+      const my = pts.reduce((s, p) => s + p[1], 0) / n;
+      const centred = pts.map(p => [p[0] - mx, p[1] - my]);
+
+      // Covariance matrix
+      let c00 = 0, c01 = 0, c11 = 0;
+      centred.forEach(([x, y]) => { c00 += x*x; c01 += x*y; c11 += y*y; });
+      c00 /= n; c01 /= n; c11 /= n;
+
+      // Eigenvalues of 2×2 symmetric matrix
+      const tr = c00 + c11;
+      const det = c00 * c11 - c01 * c01;
+      const disc = Math.sqrt(Math.max(0, tr * tr / 4 - det));
+      const lam1 = tr / 2 + disc;
+      const lam2 = tr / 2 - disc;
+
+      // Eigenvectors
+      let ev1, ev2;
+      if (Math.abs(c01) > 1e-10) {
+        const len = Math.sqrt((lam1 - c11) ** 2 + c01 ** 2);
+        ev1 = [(lam1 - c11) / len, c01 / len];
+        ev2 = [-ev1[1], ev1[0]];
+      } else {
+        ev1 = [1, 0]; ev2 = [0, 1];
+      }
+
+      return { centred, mx, my, lam1, lam2, ev1, ev2, cov: [[c00, c01],[c01, c11]] };
+    }
+
+    // ── Canvas drawing ────────────────────────────────────────
+    const canvas = document.getElementById('pca-canvas');
+    const ctx = canvas.getContext('2d');
+    const DPR = Math.min(2, window.devicePixelRatio || 1);
+    const CW = 560, CH = 380;
+    canvas.width = CW * DPR; canvas.height = CH * DPR;
+    ctx.scale(DPR, DPR);
+
+    const CX = CW / 2, CY = CH / 2, SCALE = 60;
+
+    function wx(x) { return CX + x * SCALE; }
+    function wy(y) { return CY - y * SCALE; }
+
+    let currentStep = 0;
+
+    function drawPCA(step, corr) {
+      const pts = genData(corr);
+      const { centred, mx, my, lam1, lam2, ev1, ev2, cov } = pca(pts);
+
+      ctx.clearRect(0, 0, CW, CH);
+      ctx.fillStyle = '#0a0f18';
+      ctx.fillRect(0, 0, CW, CH);
+
+      // Grid
+      ctx.strokeStyle = '#1a2535';
+      ctx.lineWidth = 1;
+      for (let x = -4; x <= 4; x++) {
+        ctx.beginPath(); ctx.moveTo(wx(x), 10); ctx.lineTo(wx(x), CH-10); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(10, wy(x)); ctx.lineTo(CW-10, wy(x)); ctx.stroke();
+      }
+
+      // Axes
+      ctx.strokeStyle = '#3d4f66'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(10, CY); ctx.lineTo(CW-10, CY); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(CX, 10); ctx.lineTo(CX, CH-10); ctx.stroke();
+
+      // Axis labels
+      ctx.fillStyle='#5a6a80'; ctx.font='11px IBM Plex Sans,sans-serif';
+      ctx.textAlign='right'; ctx.fillText('Income ($k)', CW-12, CY-6);
+      ctx.save(); ctx.translate(CX+12, 20); ctx.rotate(-Math.PI/2);
+      ctx.textAlign='right'; ctx.fillText('Age', 0, 0); ctx.restore();
+
+      const data = step === 0 ? pts : centred.map(p => [p[0] + (step === 0 ? mx : 0), p[1] + (step === 0 ? my : 0)]);
+      const drawPts = step === 0 ? pts : centred;
+
+      // Draw eigenvector arrows (step >= 2)
+      if (step >= 2) {
+        const L1 = Math.sqrt(lam1) * 2.5;
+        const L2 = Math.sqrt(Math.max(0, lam2)) * 2.5;
+        // PC1
+        ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(wx(-ev1[0]*L1), wy(-ev1[1]*L1));
+        ctx.lineTo(wx(ev1[0]*L1), wy(ev1[1]*L1));
+        ctx.stroke();
+        // arrowhead
+        ctx.fillStyle = '#3b82f6';
+        const ang1 = Math.atan2(-ev1[1], ev1[0]);
+        ctx.save(); ctx.translate(wx(ev1[0]*L1), wy(ev1[1]*L1)); ctx.rotate(-ang1);
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-10,-5); ctx.lineTo(-10,5); ctx.closePath(); ctx.fill();
+        ctx.restore();
+
+        // PC2
+        ctx.strokeStyle = '#c9a45c'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(wx(-ev2[0]*L2), wy(-ev2[1]*L2));
+        ctx.lineTo(wx(ev2[0]*L2), wy(ev2[1]*L2));
+        ctx.stroke();
+
+        // Labels
+        ctx.fillStyle = '#3b82f6'; ctx.font = 'bold 13px IBM Plex Sans,sans-serif';
+        ctx.fillText('PC1', wx(ev1[0]*L1)+8, wy(ev1[1]*L1)+5);
+        ctx.fillStyle = '#c9a45c';
+        ctx.fillText('PC2', wx(ev2[0]*L2)+8, wy(ev2[1]*L2)+5);
+      }
+
+      // Draw data points
+      drawPts.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(wx(p[0]), wy(p[1]), 5, 0, Math.PI * 2);
+        ctx.fillStyle = step === 3 ? 'rgba(91,159,212,0.3)' : '#5b9fd4';
+        ctx.fill();
+        ctx.strokeStyle = '#1d4e89'; ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+
+      // Draw projections onto PC1 (step 3)
+      if (step === 3) {
+        centred.forEach(p => {
+          const proj = p[0] * ev1[0] + p[1] * ev1[1];
+          const px = proj * ev1[0];
+          const py = proj * ev1[1];
+          // line to projection
+          ctx.strokeStyle = 'rgba(59,130,246,.25)'; ctx.lineWidth = 1;
+          ctx.setLineDash([3,3]);
+          ctx.beginPath(); ctx.moveTo(wx(p[0]),wy(p[1])); ctx.lineTo(wx(px),wy(py)); ctx.stroke();
+          ctx.setLineDash([]);
+          // projected dot
+          ctx.beginPath(); ctx.arc(wx(px),wy(py),5,0,Math.PI*2);
+          ctx.fillStyle='#4ade80'; ctx.fill();
+          ctx.strokeStyle='#166534'; ctx.lineWidth=1; ctx.stroke();
+        });
+      }
+
+      // Stage label
+      const labels = ['Raw data — original axes', 'Centred — mean subtracted', 'Eigenvectors of covariance matrix', 'Projected onto PC1'];
+      ctx.fillStyle='#5a6a80'; ctx.font='11px IBM Plex Sans,sans-serif'; ctx.textAlign='left';
+      ctx.fillText(labels[step], 12, 22);
+      ctx.textAlign='start';
+
+      // Update covariance + eigenvalue display
+      const cm = document.getElementById('cov-grid');
+      cm.replaceChildren();
+      cm.style.gridTemplateColumns = 'repeat(2,auto)';
+      [[cov[0][0], cov[0][1]],[cov[1][0],cov[1][1]]].flat().forEach((v,i)=>{
+        const s = document.createElement('span');
+        s.className = 'mat-cell ' + (i===1||i===2?'hl-feat':'hl-bias');
+        s.textContent = v.toFixed(3);
+        cm.appendChild(s);
+      });
+      document.getElementById('ev1').textContent = lam1.toFixed(3);
+      document.getElementById('ev2').textContent = Math.max(0,lam2).toFixed(3);
+
+      // Variance bars
+      const total = lam1 + Math.max(0,lam2);
+      const vb = document.getElementById('variance-bars');
+      vb.replaceChildren();
+      [['PC1 — first principal component', lam1/total,'#3b82f6'], ['PC2 — second principal component', Math.max(0,lam2)/total,'#c9a45c']].forEach(([name,frac,col])=>{
+        const row = document.createElement('div');
+        row.style.cssText='display:flex;align-items:center;gap:.8rem';
+        row.innerHTML=`<span style="font-size:.8rem;color:var(--muted);min-width:15rem">${name}</span>
+          <div class="variance-bar-wrap"><div class="variance-bar" style="width:${(frac*100).toFixed(1)}%;background:${col}"></div></div>
+          <span style="font-family:var(--mono);font-size:.82rem;color:var(--text);min-width:3rem">${(frac*100).toFixed(1)}%</span>`;
+        vb.appendChild(row);
+      });
+
+      // Small 2D projection plots
+      drawSmallScatter('proj-orig', centred, '#5b9fd4', false, null);
+      drawSmallScatter('proj-1d',  centred, '#4ade80', true, ev1);
+    }
+
+    function drawSmallScatter(id, pts, color, projectOnPC1, ev1) {
+      const svg = document.getElementById(id);
+      svg.replaceChildren();
+      const VW=240,VH=200,P=25;
+      const all = projectOnPC1
+        ? pts.map(p=>{ const s=p[0]*ev1[0]+p[1]*ev1[1]; return [s*ev1[0],s*ev1[1]]; })
+        : pts;
+      const xs=all.map(p=>p[0]), ys=all.map(p=>p[1]);
+      const xr=Math.max(Math.max(...xs.map(Math.abs)),0.1)*1.3;
+      const yr=Math.max(Math.max(...ys.map(Math.abs)),0.1)*1.3;
+      const sx=x=>P+(x+xr)/(2*xr)*(VW-2*P);
+      const sy=y=>VH-P-(y+yr)/(2*yr)*(VH-2*P);
+
+      function ns(tag,a={}){ const e=document.createElementNS('http://www.w3.org/2000/svg',tag); for(const[k,v]of Object.entries(a))e.setAttribute(k,v); return e; }
+      // axes
+      svg.appendChild(ns('line',{x1:P,y1:VH/2,x2:VW-P,y2:VH/2,stroke:'#3d4f66','stroke-width':1.5}));
+      svg.appendChild(ns('line',{x1:VW/2,y1:P,x2:VW/2,y2:VH-P,stroke:'#3d4f66','stroke-width':1.5}));
+      // pts
+      all.forEach((p,i)=>{
+        svg.appendChild(ns('circle',{cx:sx(p[0]),cy:sy(p[1]),r:4.5,fill:color,stroke:'#0a0f18','stroke-width':1}));
+        if(projectOnPC1){
+          // also draw original faded
+          svg.insertBefore(ns('circle',{cx:sx(pts[i][0]),cy:sy(pts[i][1]),r:3.5,fill:'rgba(91,159,212,.25)',stroke:'none'}), svg.firstChild);
+          svg.insertBefore(ns('line',{x1:sx(pts[i][0]),y1:sy(pts[i][1]),x2:sx(p[0]),y2:sy(p[1]),stroke:'rgba(59,130,246,.2)','stroke-width':1,'stroke-dasharray':'3 2'}), svg.firstChild);
+        }
+      });
+    }
+
+    // ── Event wiring ─────────────────────────────────────────
+    document.querySelectorAll('.step-tab').forEach(tab=>{
+      tab.addEventListener('click',()=>{
+        document.querySelectorAll('.step-tab').forEach(t=>t.classList.remove('active'));
+        tab.classList.add('active');
+        currentStep=parseInt(tab.dataset.step);
+        const corr=parseFloat(document.getElementById('pca-corr').value);
+        drawPCA(currentStep,corr);
+      });
+    });
+
+    document.getElementById('pca-corr').addEventListener('input',()=>{
+      const corr=parseFloat(document.getElementById('pca-corr').value);
+      document.getElementById('pca-corr-val').textContent=corr.toFixed(2);
+      drawPCA(currentStep,corr);
+    });
+
+    drawPCA(0, 0.7);
+  </script>
+</body>
+</html>

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chapter 16 — Gradient Descent for Classification | Math for ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .act-badge { display:inline-block; padding:.2rem .7rem; border-radius:20px; font-size:.72rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; border:1px solid #34d399; color:#34d399; margin-bottom:.6rem; }
+    .controls-row { display:flex; gap:1rem; flex-wrap:wrap; align-items:center; margin-bottom:1rem; }
+    .slider-row { display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin:.5rem 0; }
+    .slider-row label { font-size:.82rem; color:var(--muted); min-width:110px; }
+    .slider-row input[type=range] { flex:1; min-width:100px; }
+    .slider-val { font-family:var(--mono); color:var(--accent); min-width:55px; }
+    canvas#gd-canvas { width:100%; aspect-ratio:1/.65; display:block; }
+    .chart-wrap { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; }
+    .metrics-row { display:grid; grid-template-columns:repeat(4,1fr); gap:.6rem; margin-top:.8rem; }
+    @media(max-width:500px){ .metrics-row{grid-template-columns:1fr 1fr;} }
+    .metric-cell { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:.55rem .7rem; text-align:center; }
+    .metric-val { font-family:var(--mono); font-size:1rem; font-weight:700; color:var(--accent); }
+    .metric-lbl { font-size:.7rem; color:var(--muted); margin-top:.15rem; }
+    .log-box { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:.6rem .8rem; font-family:var(--mono); font-size:.78rem; color:var(--muted); max-height:140px; overflow-y:auto; margin-top:.8rem; }
+    .log-box p { margin:.15rem 0; }
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li><li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html">3</a></li><li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li><li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li><li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li><li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li><li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html" class="active">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li><li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="chapter-hero">
+      <div class="act-badge">Act 4 · Calculus</div>
+      <div class="chapter-eyebrow">Chapter 16 of 19</div>
+      <h1 class="chapter-title">Gradient Descent for Classification</h1>
+      <p class="chapter-intro">
+        We have the loss (Ch 13), the derivative (Ch 14), and the gradient vector (Ch 15).
+        Now we put it all together: iteratively update θ by subtracting α·∇L until we converge.
+        This is the same algorithm as Ch 6, but on cross-entropy loss for our loan model.
+      </p>
+    </div>
+
+    <!-- ── Controls ───────────────────────────────────────────── -->
+    <h2 class="section-heading">Watch gradient descent train the loan model</h2>
+    <p class="section-sub">
+      Set the learning rate and starting point, then run. The dot traces the path down the
+      loss surface to the minimum — where our logistic regression model is trained.
+    </p>
+
+    <div class="chart-wrap">
+      <canvas id="gd-canvas" width="600" height="390"></canvas>
+      <div class="slider-row">
+        <label>Learning rate α</label>
+        <input type="range" id="sl-lr" min="0.1" max="5" value="1" step="0.1" />
+        <span class="slider-val" id="val-lr">1.0</span>
+      </div>
+      <div class="slider-row">
+        <label>Start θ₀</label>
+        <input type="range" id="sl-t0" min="-5" max="1" value="-5" step="0.5" />
+        <span class="slider-val" id="val-t0">−5.0</span>
+      </div>
+      <div class="slider-row">
+        <label>Start θ₁</label>
+        <input type="range" id="sl-t1" min="-0.08" max="0.13" value="-0.08" step="0.01" />
+        <span class="slider-val" id="val-t1">−0.080</span>
+      </div>
+      <div class="controls-row" style="margin-top:.8rem">
+        <button class="btn btn-primary" id="btn-run">▶ Run</button>
+        <button class="btn" id="btn-step">Step once</button>
+        <button class="btn" id="btn-reset">Reset</button>
+      </div>
+    </div>
+
+    <div class="metrics-row">
+      <div class="metric-cell"><div class="metric-val" id="m-iter">0</div><div class="metric-lbl">Iteration</div></div>
+      <div class="metric-cell"><div class="metric-val" id="m-loss">–</div><div class="metric-lbl">Loss</div></div>
+      <div class="metric-cell"><div class="metric-val" id="m-t0">–</div><div class="metric-lbl">θ₀</div></div>
+      <div class="metric-cell"><div class="metric-val" id="m-t1">–</div><div class="metric-lbl">θ₁</div></div>
+    </div>
+
+    <div class="log-box" id="log-box"><p style="color:var(--muted)">Press Run or Step to start training...</p></div>
+
+    <div class="insight insight-gold">
+      <strong>Why this matters (Act 4 summary):</strong>
+      Calculus gave us the gradient; gradient descent used it to find the optimal θ.
+      The learned θ₀ and θ₁ are the weights of our trained logistic regression model.
+      We can now predict P(default) for any new loan applicant.
+    </div>
+
+    <div class="insight" style="border-color:var(--accent)">
+      <strong>Story so far (Calculus: Ch 14–16):</strong>
+      Derivatives (Ch 14) → gradient vector (Ch 15) → gradient descent convergence (Ch 16).
+      We have a trained model. Now the question is: <em>how good is it?</em>
+      <br/>
+      <strong>Next:</strong> Evaluate the model — how many defaults did we correctly flag? → Chapter 17
+    </div>
+
+    <div class="chapter-nav">
+      <a href="./chapter15.html" class="btn">← Chapter 15</a>
+      <a href="./chapter17.html" class="btn btn-primary">Chapter 17: Confusion Matrix →</a>
+    </div>
+  </div>
+
+  <script>
+    const applicants = [
+      { income:35, y:1 }, { income:55, y:0 }, { income:42, y:1 },
+      { income:80, y:0 }, { income:28, y:1 }, { income:65, y:0 },
+      { income:38, y:1 }, { income:72, y:0 },
+    ];
+    function sigmoid(z){ return 1/(1+Math.exp(-z)); }
+    function lossF(t0,t1){
+      return -applicants.reduce((s,a)=>{
+        const p=sigmoid(t0+t1*a.income);
+        return s+(a.y===1?Math.log(p+1e-10):Math.log(1-p+1e-10));
+      },0)/applicants.length;
+    }
+    function gradF(t0,t1){
+      let g0=0,g1=0;
+      applicants.forEach(a=>{
+        const err=sigmoid(t0+t1*a.income)-a.y;
+        g0+=err; g1+=err*a.income;
+      });
+      return [g0/applicants.length, g1/applicants.length];
+    }
+
+    // ── Canvas drawing ─────────────────────────────────────────
+    const canvas = document.getElementById('gd-canvas');
+    const ctx = canvas.getContext('2d');
+    const t0Min=-6, t0Max=2, t1Min=-0.1, t1Max=0.15;
+    const pad=30;
+
+    function thetaToCanvas(t0,t1){
+      const W=canvas.width, H=canvas.height;
+      const cx=pad+(t0-t0Min)/(t0Max-t0Min)*(W-2*pad);
+      const cy=pad+(t1Max-t1)/(t1Max-t1Min)*(H-2*pad);
+      return [cx,cy];
+    }
+
+    let contourCache=null;
+    function buildContourCache(){
+      const W=canvas.width, H=canvas.height, res=50;
+      const lossGrid=[];
+      let lMin=Infinity, lMax=-Infinity;
+      for(let i=0;i<=res;i++){
+        lossGrid.push([]);
+        for(let j=0;j<=res;j++){
+          const t0=t0Min+(t0Max-t0Min)*i/res;
+          const t1=t1Min+(t1Max-t1Min)*j/res;
+          const l=lossF(t0,t1);
+          lossGrid[i].push(l);
+          if(l<lMin)lMin=l; if(l>lMax)lMax=l;
+        }
+      }
+      contourCache={lossGrid,lMin,lMax,res};
+    }
+
+    function drawBase(){
+      const W=canvas.width, H=canvas.height;
+      if(!contourCache) buildContourCache();
+      const {lossGrid,lMin,lMax,res}=contourCache;
+      const tw=(W-2*pad)/res, th=(H-2*pad)/res;
+      ctx.clearRect(0,0,W,H);
+      for(let i=0;i<res;i++){
+        for(let j=0;j<res;j++){
+          const l=(lossGrid[i][j]+lossGrid[i+1][j]+lossGrid[i][j+1]+lossGrid[i+1][j+1])/4;
+          const t=(l-lMin)/(lMax-lMin);
+          ctx.fillStyle=`rgb(${Math.round(13+t*100)},${Math.round(17+t*30)},${Math.round(23+(1-t)*160)})`;
+          ctx.fillRect(pad+i*tw, pad+(res-1-j)*th, tw+1, th+1);
+        }
+      }
+      // Axes
+      ctx.strokeStyle='#2a3a50'; ctx.lineWidth=1;
+      ctx.strokeRect(pad,pad,W-2*pad,H-2*pad);
+      ctx.fillStyle='#6b7c90'; ctx.font='10px IBM Plex Mono'; ctx.textAlign='center';
+      ctx.fillText('θ₀ (bias)', W/2, H-4);
+      ctx.save(); ctx.translate(10,H/2); ctx.rotate(-Math.PI/2); ctx.fillText('θ₁ (income)', 0,0); ctx.restore();
+    }
+
+    // ── State ──────────────────────────────────────────────────
+    let t0,t1,history,iteration,running,animId;
+    function resetState(){
+      t0=parseFloat(document.getElementById('sl-t0').value);
+      t1=parseFloat(document.getElementById('sl-t1').value);
+      history=[[t0,t1]];
+      iteration=0; running=false;
+      if(animId) cancelAnimationFrame(animId);
+      document.getElementById('log-box').innerHTML='<p style="color:var(--muted)">Press Run or Step to start training...</p>';
+      updateMetrics();
+      renderPath();
+    }
+
+    function renderPath(){
+      drawBase();
+      if(history.length>1){
+        ctx.strokeStyle='rgba(74,222,128,0.6)'; ctx.lineWidth=1.5;
+        ctx.beginPath();
+        history.forEach(([a,b],i)=>{
+          const [cx,cy]=thetaToCanvas(a,b);
+          i===0?ctx.moveTo(cx,cy):ctx.lineTo(cx,cy);
+        });
+        ctx.stroke();
+      }
+      const [cx,cy]=thetaToCanvas(t0,t1);
+      ctx.beginPath(); ctx.arc(cx,cy,7,0,Math.PI*2);
+      ctx.fillStyle='#4ade80'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.fill(); ctx.stroke();
+    }
+
+    function updateMetrics(){
+      const L=lossF(t0,t1);
+      document.getElementById('m-iter').textContent=iteration;
+      document.getElementById('m-loss').textContent=L.toFixed(4);
+      document.getElementById('m-t0').textContent=t0.toFixed(3);
+      document.getElementById('m-t1').textContent=t1.toFixed(4);
+    }
+
+    function logStep(){
+      const lb=document.getElementById('log-box');
+      const L=lossF(t0,t1);
+      const p=document.createElement('p');
+      p.innerHTML=`<span style="color:var(--accent)">iter ${iteration}</span>: θ₀=${t0.toFixed(3)}, θ₁=${t1.toFixed(4)}, loss=${L.toFixed(4)}`;
+      lb.appendChild(p);
+      lb.scrollTop=lb.scrollHeight;
+    }
+
+    function step(){
+      const lr=parseFloat(document.getElementById('sl-lr').value);
+      const [g0,g1]=gradF(t0,t1);
+      t0-=lr*g0; t1-=lr*g1;
+      iteration++;
+      history.push([t0,t1]);
+      if(history.length>200) history.shift();
+      updateMetrics(); renderPath();
+      if(iteration%5===0||iteration<=5) logStep();
+    }
+
+    function runLoop(){
+      if(!running) return;
+      const prevL=lossF(t0,t1);
+      step();
+      const newL=lossF(t0,t1);
+      if(Math.abs(prevL-newL)<1e-6||iteration>=500||!isFinite(newL)){
+        running=false;
+        document.getElementById('btn-run').textContent='▶ Run';
+        const lb=document.getElementById('log-box');
+        const p=document.createElement('p');
+        p.innerHTML=`<span style="color:var(--green)">✓ Converged at iteration ${iteration}</span>`;
+        lb.appendChild(p); lb.scrollTop=lb.scrollHeight;
+        return;
+      }
+      animId=requestAnimationFrame(runLoop);
+    }
+
+    document.getElementById('btn-run').addEventListener('click',()=>{
+      if(running){ running=false; document.getElementById('btn-run').textContent='▶ Run'; return; }
+      running=true; document.getElementById('btn-run').textContent='⏸ Pause';
+      runLoop();
+    });
+    document.getElementById('btn-step').addEventListener('click',()=>{ if(!running) step(); });
+    document.getElementById('btn-reset').addEventListener('click',resetState);
+    ['sl-lr','sl-t0','sl-t1'].forEach(id=>{
+      document.getElementById(id).addEventListener('input',()=>{
+        document.getElementById('val-lr').textContent=parseFloat(document.getElementById('sl-lr').value).toFixed(1);
+        document.getElementById('val-t0').textContent=parseFloat(document.getElementById('sl-t0').value).toFixed(1);
+        document.getElementById('val-t1').textContent=parseFloat(document.getElementById('sl-t1').value).toFixed(3);
+      });
+    });
+
+    buildContourCache();
+    resetState();
+  </script>
+</body>
+</html>

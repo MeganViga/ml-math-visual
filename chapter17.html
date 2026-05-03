@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chapter 17 — Confusion Matrix | Math for ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .act-badge { display:inline-block; padding:.2rem .7rem; border-radius:20px; font-size:.72rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; border:1px solid #f472b6; color:#f472b6; margin-bottom:.6rem; }
+    .conf-matrix { display:grid; grid-template-columns:auto 1fr 1fr; gap:3px; width:fit-content; margin:1rem auto; }
+    .cm-header { background:var(--surface2); border:1px solid var(--border); padding:.5rem .9rem; font-size:.75rem; font-weight:600; color:var(--muted); text-align:center; border-radius:var(--radius-sm); text-transform:uppercase; letter-spacing:.05em; }
+    .cm-cell { border-radius:var(--radius-sm); padding:1.2rem; text-align:center; min-width:110px; }
+    .cm-tp { background:rgba(74,222,128,.18); border:2px solid #4ade80; }
+    .cm-tn { background:rgba(74,222,128,.18); border:2px solid #4ade80; }
+    .cm-fp { background:rgba(248,113,113,.12); border:2px solid var(--danger); }
+    .cm-fn { background:rgba(248,113,113,.18); border:2px solid var(--danger); border-width:3px; }
+    .cm-count { font-size:2rem; font-weight:800; font-family:var(--mono); }
+    .cm-label { font-size:.72rem; color:var(--muted); margin-top:.2rem; }
+    .cm-sublbl { font-size:.68rem; color:var(--muted); margin-top:.1rem; font-style:italic; }
+    .cm-rowlbl { display:flex; align-items:center; justify-content:center; font-size:.78rem; color:var(--muted); padding:.3rem; writing-mode:vertical-rl; text-orientation:mixed; }
+
+    .metrics-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:.8rem; margin:1rem 0; }
+    @media(max-width:560px){ .metrics-grid{grid-template-columns:1fr 1fr;} }
+    .metric-card { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:.8rem; text-align:center; }
+    .metric-big { font-size:1.4rem; font-weight:700; font-family:var(--mono); }
+    .metric-name { font-size:.72rem; color:var(--muted); margin-top:.2rem; }
+    .metric-formula { font-size:.68rem; color:var(--muted); font-style:italic; margin-top:.1rem; }
+
+    .slider-row { display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin:.6rem 0; }
+    .slider-row label { font-size:.82rem; color:var(--muted); min-width:130px; }
+    .slider-row input[type=range] { flex:1; min-width:100px; }
+    .slider-val { font-family:var(--mono); color:var(--accent); min-width:50px; }
+
+    .pred-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:.5rem; }
+    @media(max-width:480px){ .pred-grid{grid-template-columns:1fr 1fr;} }
+    .pred-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:.5rem .6rem; text-align:center; font-size:.78rem; }
+    .pred-prob { font-family:var(--mono); font-size:.9rem; font-weight:600; }
+    .pred-badge { font-size:.68rem; padding:.1rem .4rem; border-radius:10px; margin-top:.2rem; display:inline-block; }
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li><li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html">3</a></li><li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li><li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li><li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li><li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li><li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html" class="active">17</a></li>
+      <li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="chapter-hero">
+      <div class="act-badge">Act 5 · Evaluation</div>
+      <div class="chapter-eyebrow">Chapter 17 of 19</div>
+      <h1 class="chapter-title">Confusion Matrix &amp; Metrics</h1>
+      <p class="chapter-intro">
+        We trained the loan model in Ch 16. Now: <em>how good is it?</em>
+        "Accuracy" alone is misleading — a model that always says "approve" is 50% accurate
+        on our balanced dataset but catches zero defaults. The <strong>confusion matrix</strong>
+        breaks predictions into four buckets to reveal what really matters.
+      </p>
+    </div>
+
+    <!-- ── Threshold slider ────────────────────────────────────── -->
+    <h2 class="section-heading">Adjust the decision threshold</h2>
+    <p class="section-sub">
+      When P(default) exceeds the threshold, we <strong style="color:var(--danger)">decline</strong> the loan.
+      Below it, we <strong style="color:var(--green)">approve</strong>.
+      Drag the slider and watch the confusion matrix update.
+    </p>
+
+    <div class="slider-row">
+      <label>Decision threshold</label>
+      <input type="range" id="sl-thresh" min="0.1" max="0.9" value="0.5" step="0.05" />
+      <span class="slider-val" id="val-thresh">0.50</span>
+    </div>
+
+    <!-- ── Per-applicant predictions ─────────────────────────── -->
+    <div class="card">
+      <div class="card-title">Model predictions for all 8 applicants</div>
+      <div class="pred-grid" id="pred-grid"></div>
+    </div>
+
+    <!-- ── Confusion matrix ────────────────────────────────────── -->
+    <h2 class="section-heading">Confusion matrix</h2>
+    <div class="conf-matrix">
+      <div></div>
+      <div class="cm-header">Predicted: Default</div>
+      <div class="cm-header">Predicted: Repaid</div>
+      <div class="cm-rowlbl">Actual: Default</div>
+      <div class="cm-cell cm-tp">
+        <div class="cm-count" id="cnt-tp" style="color:#4ade80">–</div>
+        <div class="cm-label">True Positive (TP)</div>
+        <div class="cm-sublbl">correctly flagged default</div>
+      </div>
+      <div class="cm-cell cm-fn">
+        <div class="cm-count" id="cnt-fn" style="color:var(--danger)">–</div>
+        <div class="cm-label">False Negative (FN)</div>
+        <div class="cm-sublbl">missed default ← most costly!</div>
+      </div>
+      <div class="cm-rowlbl">Actual: Repaid</div>
+      <div class="cm-cell cm-fp">
+        <div class="cm-count" id="cnt-fp" style="color:var(--danger)">–</div>
+        <div class="cm-label">False Positive (FP)</div>
+        <div class="cm-sublbl">wrongly declined good customer</div>
+      </div>
+      <div class="cm-cell cm-tn">
+        <div class="cm-count" id="cnt-tn" style="color:#4ade80">–</div>
+        <div class="cm-label">True Negative (TN)</div>
+        <div class="cm-sublbl">correctly approved</div>
+      </div>
+    </div>
+
+    <!-- ── Metrics ─────────────────────────────────────────────── -->
+    <h2 class="section-heading">Performance metrics</h2>
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-big" id="m-acc" style="color:var(--accent)">–</div>
+        <div class="metric-name">Accuracy</div>
+        <div class="metric-formula">(TP+TN)/(all)</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-big" id="m-prec" style="color:var(--gold)">–</div>
+        <div class="metric-name">Precision</div>
+        <div class="metric-formula">TP/(TP+FP)</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-big" id="m-rec" style="color:var(--danger)">–</div>
+        <div class="metric-name">Recall</div>
+        <div class="metric-formula">TP/(TP+FN)</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-big" id="m-f1" style="color:var(--green)">–</div>
+        <div class="metric-name">F1 Score</div>
+        <div class="metric-formula">2·P·R/(P+R)</div>
+      </div>
+    </div>
+
+    <div class="insight">
+      <strong>The recall vs precision tradeoff for loans:</strong>
+      <ul style="font-size:.85rem;color:var(--muted);margin:.5rem 0 0 1.2rem;line-height:1.9">
+        <li><strong style="color:var(--danger)">Low recall</strong> = missing defaults = bank loses money on unpaid loans</li>
+        <li><strong style="color:var(--gold)">Low precision</strong> = declining good customers = lost revenue &amp; customer complaints</li>
+        <li>The bank must decide which error is more expensive — and set the threshold accordingly</li>
+      </ul>
+    </div>
+
+    <div class="insight" style="border-color:var(--accent)">
+      <strong>Story so far:</strong>
+      The confusion matrix reveals that accuracy alone doesn't tell the whole story.
+      For our loan model, a missed default (FN) costs the bank more than a false alarm (FP).
+      <br/>
+      <strong>Next:</strong> Evaluate the model across all thresholds simultaneously with the ROC curve → Chapter 18
+    </div>
+
+    <div class="chapter-nav">
+      <a href="./chapter16.html" class="btn">← Chapter 16</a>
+      <a href="./chapter18.html" class="btn btn-primary">Chapter 18: ROC Curve →</a>
+    </div>
+  </div>
+
+  <script>
+    const applicants = [
+      { id:1, income:35, y:1 }, { id:2, income:55, y:0 }, { id:3, income:42, y:1 },
+      { id:4, income:80, y:0 }, { id:5, income:28, y:1 }, { id:6, income:65, y:0 },
+      { id:7, income:38, y:1 }, { id:8, income:72, y:0 },
+    ];
+    // Learned parameters (approx optimal for this data)
+    const t0=-2.8, t1=0.055;
+    function sigmoid(z){ return 1/(1+Math.exp(-z)); }
+    const probs = applicants.map(a=>sigmoid(t0+t1*a.income));
+
+    function update(){
+      const thresh=parseFloat(document.getElementById('sl-thresh').value);
+      document.getElementById('val-thresh').textContent=thresh.toFixed(2);
+
+      // Per-applicant grid
+      const grid=document.getElementById('pred-grid');
+      grid.innerHTML='';
+      let tp=0,tn=0,fp=0,fn=0;
+      applicants.forEach((a,i)=>{
+        const p=probs[i];
+        const predDefault=p>=thresh;
+        if(predDefault&&a.y===1)tp++;
+        else if(!predDefault&&a.y===0)tn++;
+        else if(predDefault&&a.y===0)fp++;
+        else fn++;
+        const correct=(predDefault&&a.y===1)||(!predDefault&&a.y===0);
+        const card=document.createElement('div');
+        card.className='pred-card';
+        card.innerHTML=`
+          <div style="font-size:.72rem;color:var(--muted)">Appl. ${a.id} (${a.y===1?'Default':'Repaid'})</div>
+          <div class="pred-prob" style="color:${p>=thresh?'var(--danger)':'var(--green)'}">${(p*100).toFixed(0)}%</div>
+          <div class="pred-badge" style="background:${correct?'rgba(74,222,128,.15)':'rgba(248,113,113,.15)'};color:${correct?'var(--green)':'var(--danger)'}">
+            ${predDefault?'Decline':'Approve'} ${correct?'✓':'✗'}
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+
+      document.getElementById('cnt-tp').textContent=tp;
+      document.getElementById('cnt-tn').textContent=tn;
+      document.getElementById('cnt-fp').textContent=fp;
+      document.getElementById('cnt-fn').textContent=fn;
+
+      const acc=(tp+tn)/8;
+      const prec=tp+fp>0?tp/(tp+fp):0;
+      const rec=tp+fn>0?tp/(tp+fn):0;
+      const f1=prec+rec>0?2*prec*rec/(prec+rec):0;
+      document.getElementById('m-acc').textContent=(acc*100).toFixed(0)+'%';
+      document.getElementById('m-prec').textContent=(prec*100).toFixed(0)+'%';
+      document.getElementById('m-rec').textContent=(rec*100).toFixed(0)+'%';
+      document.getElementById('m-f1').textContent=f1.toFixed(2);
+    }
+    document.getElementById('sl-thresh').addEventListener('input',update);
+    update();
+  </script>
+</body>
+</html>

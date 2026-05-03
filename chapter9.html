@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chapter 9 — Feature Correlation | Math for ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .act-badge {
+      display:inline-block; padding:.2rem .7rem; border-radius:20px;
+      font-size:.72rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+      border:1px solid var(--gold); color:var(--gold); margin-bottom:.6rem;
+    }
+    .scatter-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    @media(max-width:580px){ .scatter-grid { grid-template-columns:1fr; } }
+    .scatter-panel { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:.8rem; }
+    .scatter-lbl { font-size:.78rem; color:var(--muted); margin-bottom:.4rem; text-align:center; }
+    .scatter-svg { width:100%; height:180px; display:block; }
+
+    .corr-heatmap { display:grid; grid-template-columns:repeat(5,1fr); gap:2px; margin-top:.8rem; }
+    .hm-cell {
+      aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+      border-radius:4px; font-size:.72rem; font-family:var(--mono); color:#fff;
+      font-weight:600;
+    }
+    .hm-label { font-size:.7rem; color:var(--muted); padding:.3rem 0; text-align:center; }
+
+    .corr-table { width:100%; border-collapse:collapse; font-size:.85rem; }
+    .corr-table th { background:var(--surface2); color:var(--muted); padding:.4rem .7rem; border:1px solid var(--border); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; }
+    .corr-table td { padding:.4rem .7rem; border:1px solid var(--border); }
+    .corr-bar-wrap { background:var(--surface); border-radius:4px; height:10px; overflow:hidden; }
+    .corr-bar { height:100%; border-radius:4px; }
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li><li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html">3</a></li><li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li><li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li>
+      <li><a href="./chapter9.html" class="active">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li><li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li><li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li><li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="chapter-hero">
+      <div class="act-badge">Act 2 · Statistics</div>
+      <div class="chapter-eyebrow">Chapter 9 of 19</div>
+      <h1 class="chapter-title">Which Features Predict Default?</h1>
+      <p class="chapter-intro">
+        In Ch 8 we looked at each feature separately. Now we ask: which features
+        <em>move together with</em> the default outcome? That relationship is called
+        <strong>correlation</strong> — and it tells us which inputs will be most useful to our model.
+      </p>
+    </div>
+
+    <!-- ── Scatter plots ──────────────────────────────────────── -->
+    <h2 class="section-heading">Feature vs Default — scatter plots</h2>
+    <p class="section-sub">
+      Each dot is one applicant. <span style="color:var(--danger)">Red = defaulted</span>,
+      <span style="color:var(--green)">green = repaid</span>.
+      Look for clear separation — that's a predictive feature.
+    </p>
+
+    <div class="scatter-grid">
+      <div class="scatter-panel">
+        <div class="scatter-lbl">Income vs Default</div>
+        <svg class="scatter-svg" id="sc-income" viewBox="0 0 260 180"></svg>
+      </div>
+      <div class="scatter-panel">
+        <div class="scatter-lbl">Age vs Default</div>
+        <svg class="scatter-svg" id="sc-age" viewBox="0 0 260 180"></svg>
+      </div>
+      <div class="scatter-panel">
+        <div class="scatter-lbl">Loan Amount vs Default</div>
+        <svg class="scatter-svg" id="sc-loan" viewBox="0 0 260 180"></svg>
+      </div>
+      <div class="scatter-panel">
+        <div class="scatter-lbl">Debt Ratio vs Default</div>
+        <svg class="scatter-svg" id="sc-debt" viewBox="0 0 260 180"></svg>
+      </div>
+    </div>
+
+    <!-- ── Correlation with outcome ───────────────────────────── -->
+    <h2 class="section-heading">Pearson correlation with default outcome</h2>
+    <p class="section-sub">
+      Correlation r ∈ [−1, +1]. A negative r means higher feature → less likely to default.
+      |r| near 1 = strong predictor. Near 0 = weak predictor.
+    </p>
+    <div class="card">
+      <table class="corr-table" id="corr-table">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>r with Default</th>
+            <th>Strength</th>
+            <th>Direction</th>
+          </tr>
+        </thead>
+        <tbody id="corr-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- ── Correlation heatmap between features ──────────────── -->
+    <h2 class="section-heading">Feature–feature correlation matrix</h2>
+    <p class="section-sub">
+      This is the <strong>covariance matrix</strong> idea from Ch 7 — applied to our loan features.
+      High correlation between features (like income &amp; loan amount) is the multicollinearity
+      that caused rank issues in Ch 5.
+    </p>
+    <div class="card">
+      <div class="card-title">Correlation heatmap — blue = positive, red = negative</div>
+      <div style="max-width:360px">
+        <div class="corr-heatmap" id="feat-heatmap"></div>
+      </div>
+      <p style="font-size:.75rem;color:var(--muted);margin-top:.6rem">
+        Features: <strong>Income</strong>, <strong>Age</strong>, <strong>Loan</strong>,
+        <strong>Debt ratio</strong>, <strong>Default (y)</strong>
+      </p>
+    </div>
+
+    <div class="insight insight-gold">
+      <strong>Why this matters for the loan model:</strong>
+      Income and age are negatively correlated with default — higher income &amp; older applicants
+      default less. Debt ratio is positively correlated. These correlations guide feature selection,
+      and we also see that income and loan amount are correlated with each other — potential
+      multicollinearity to watch for (Ch 5 lesson applied here).
+    </div>
+
+    <div class="insight" style="border-color:var(--accent)">
+      <strong>Story so far:</strong>
+      Income, age, and debt ratio all correlate with default outcome. The features also correlate
+      with each other. This confirms they're all useful — but we can't just read off who will default.
+      <br/>
+      <strong>Next:</strong> Income roughly follows a bell curve. What can that shape tell us? → Chapter 10
+    </div>
+
+    <div class="chapter-nav">
+      <a href="./chapter8.html" class="btn">← Chapter 8</a>
+      <a href="./chapter10.html" class="btn btn-primary">Chapter 10: Normal Distribution →</a>
+    </div>
+  </div>
+
+  <script>
+    const data = [
+      { income:35000, age:28, loan:15000, debt:0.43, y:1 },
+      { income:55000, age:45, loan:20000, debt:0.36, y:0 },
+      { income:42000, age:32, loan:18000, debt:0.43, y:1 },
+      { income:80000, age:52, loan:25000, debt:0.31, y:0 },
+      { income:28000, age:24, loan:12000, debt:0.43, y:1 },
+      { income:65000, age:38, loan:22000, debt:0.34, y:0 },
+      { income:38000, age:29, loan:16000, debt:0.42, y:1 },
+      { income:72000, age:48, loan:24000, debt:0.33, y:0 },
+    ];
+
+    function ns(tag, a = {}) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      for (const [k, v] of Object.entries(a)) el.setAttribute(k, v);
+      return el;
+    }
+
+    function pearson(xs, ys) {
+      const n = xs.length;
+      const mx = xs.reduce((s,v)=>s+v,0)/n, my = ys.reduce((s,v)=>s+v,0)/n;
+      const num = xs.reduce((s,v,i)=>s+(v-mx)*(ys[i]-my),0);
+      const dx = Math.sqrt(xs.reduce((s,v)=>s+(v-mx)**2,0));
+      const dy = Math.sqrt(ys.reduce((s,v)=>s+(v-my)**2,0));
+      return dx*dy < 1e-10 ? 0 : num/(dx*dy);
+    }
+
+    function drawScatterVsY(svgId, xvals, xlabel) {
+      const svg = document.getElementById(svgId);
+      svg.innerHTML = '';
+      const W=260, H=180, padL=30, padR=10, padT=10, padB=30;
+      const mn = Math.min(...xvals), mx = Math.max(...xvals);
+      const sx = v => padL + (v-mn)/(mx-mn+1e-9)*(W-padL-padR);
+      const sy = v => padT + (1-v)*(H-padT-padB);
+
+      // jitter y a bit so points don't overlap
+      const jitter = [0.1,-0.1,0.08,-0.08,0.12,-0.12,0.05,-0.05];
+      data.forEach((d, i) => {
+        const xv = xvals[i];
+        const yv = (d.y === 1 ? 0.75 : 0.25) + jitter[i]*0.3;
+        svg.appendChild(ns('circle', {
+          cx: sx(xv), cy: sy(yv), r: 6,
+          fill: d.y === 1 ? '#f87171' : '#4ade80',
+          stroke: '#0a0f18', 'stroke-width': 1.5, opacity: 0.9
+        }));
+      });
+      // y axis labels
+      ['Defaulted','Repaid'].forEach((lbl, i) => {
+        const t = ns('text', { x: padL-4, y: sy(i===0?0.75:0.25)+4, 'text-anchor':'end', fill:'#6b7c90', 'font-size':9 });
+        t.textContent = lbl;
+        svg.appendChild(t);
+      });
+      // x axis
+      svg.appendChild(ns('line',{x1:padL,y1:H-padB,x2:W-padR,y2:H-padB,stroke:'#2a3a50','stroke-width':1}));
+      // x labels
+      [mn,(mn+mx)/2,mx].forEach((v,i) => {
+        const t = ns('text',{x:padL+i*(W-padL-padR)/2,y:H-14,'text-anchor':'middle',fill:'#6b7c90','font-size':9});
+        t.textContent = v>=1000?Math.round(v/1000)+'k':v.toFixed(2);
+        svg.appendChild(t);
+      });
+    }
+
+    drawScatterVsY('sc-income', data.map(d=>d.income), 'Income');
+    drawScatterVsY('sc-age', data.map(d=>d.age), 'Age');
+    drawScatterVsY('sc-loan', data.map(d=>d.loan), 'Loan');
+    drawScatterVsY('sc-debt', data.map(d=>d.debt), 'Debt ratio');
+
+    // ── Correlation table ─────────────────────────────────────
+    const features = [
+      { key:'income', label:'Income', vals:data.map(d=>d.income) },
+      { key:'age',    label:'Age',    vals:data.map(d=>d.age) },
+      { key:'loan',   label:'Loan Amount', vals:data.map(d=>d.loan) },
+      { key:'debt',   label:'Debt Ratio',  vals:data.map(d=>d.debt) },
+    ];
+    const ys = data.map(d=>d.y);
+    const tbody = document.getElementById('corr-tbody');
+    features.forEach(f => {
+      const r = pearson(f.vals, ys);
+      const abs = Math.abs(r);
+      const strength = abs > 0.7 ? 'Strong' : abs > 0.4 ? 'Moderate' : 'Weak';
+      const color = r < 0 ? 'var(--green)' : 'var(--danger)';
+      const barColor = r < 0 ? '#4ade80' : '#f87171';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="color:var(--text)">${f.label}</td>
+        <td style="font-family:var(--mono);color:${color}">${r.toFixed(3)}</td>
+        <td style="color:var(--muted)">${strength}</td>
+        <td>
+          <div class="corr-bar-wrap">
+            <div class="corr-bar" style="width:${Math.round(abs*100)}%;background:${barColor}"></div>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // ── Feature heatmap (5×5 incl. y) ────────────────────────
+    const allFeats = [
+      { label:'Inc', vals:data.map(d=>d.income) },
+      { label:'Age', vals:data.map(d=>d.age) },
+      { label:'Loan',vals:data.map(d=>d.loan) },
+      { label:'Debt',vals:data.map(d=>d.debt) },
+      { label:'y',   vals:data.map(d=>d.y) },
+    ];
+    const hm = document.getElementById('feat-heatmap');
+    // header row
+    [''].concat(allFeats.map(f=>f.label)).forEach(l => {
+      const d = document.createElement('div');
+      d.className = 'hm-label';
+      d.textContent = l;
+      hm.appendChild(d);
+    });
+    allFeats.forEach((fi,i) => {
+      const lbl = document.createElement('div');
+      lbl.className = 'hm-label'; lbl.textContent = fi.label;
+      hm.appendChild(lbl);
+      allFeats.forEach((fj,j) => {
+        const r = pearson(fi.vals, fj.vals);
+        const d = document.createElement('div');
+        d.className = 'hm-cell';
+        const t = Math.max(-1,Math.min(1,r));
+        let bg;
+        if (t >= 0) bg = `rgb(${Math.round(20+t*35)},${Math.round(80+t*90)},${Math.round(140+t*80)})`;
+        else        bg = `rgb(${Math.round(100+(-t)*90)},${Math.round(30)},${Math.round(30)})`;
+        d.style.background = bg;
+        d.title = `${fi.label} vs ${fj.label}: r=${r.toFixed(2)}`;
+        d.textContent = r.toFixed(1);
+        hm.appendChild(d);
+      });
+    });
+  </script>
+</body>
+</html>

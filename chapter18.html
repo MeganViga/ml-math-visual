@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chapter 18 — ROC Curve & AUC | Math for ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .act-badge { display:inline-block; padding:.2rem .7rem; border-radius:20px; font-size:.72rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; border:1px solid #f472b6; color:#f472b6; margin-bottom:.6rem; }
+    canvas#roc-canvas { width:100%; aspect-ratio:1; display:block; max-width:480px; margin:0 auto; }
+    .chart-wrap { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; }
+    .slider-row { display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin:.6rem 0; }
+    .slider-row label { font-size:.82rem; color:var(--muted); min-width:130px; }
+    .slider-row input[type=range] { flex:1; min-width:100px; }
+    .slider-val { font-family:var(--mono); color:var(--accent); min-width:50px; }
+    .auc-big { font-size:3rem; font-weight:800; font-family:var(--mono); color:var(--accent); text-align:center; }
+    .auc-lbl { font-size:.85rem; color:var(--muted); text-align:center; margin-top:.2rem; }
+    .interp-grid { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; margin:.8rem 0; }
+    @media(max-width:480px){ .interp-grid{grid-template-columns:1fr;} }
+    .interp-card { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:.7rem; }
+    .interp-range { font-family:var(--mono); font-size:.88rem; font-weight:600; margin-bottom:.3rem; }
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li><li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html">3</a></li><li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li><li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li><li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li><li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li><li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li>
+      <li><a href="./chapter18.html" class="active">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="chapter-hero">
+      <div class="act-badge">Act 5 · Evaluation</div>
+      <div class="chapter-eyebrow">Chapter 18 of 19</div>
+      <h1 class="chapter-title">ROC Curve &amp; AUC</h1>
+      <p class="chapter-intro">
+        In Ch 17 we evaluated the model at one threshold. But how do we compare two different models
+        regardless of threshold? The <strong>ROC curve</strong> plots true positive rate vs false positive
+        rate across every possible threshold. The <strong>AUC</strong> (area under the curve)
+        is a single number that summarises model quality.
+      </p>
+    </div>
+
+    <!-- ── Explanation ────────────────────────────────────────── -->
+    <h2 class="section-heading">What the ROC curve plots</h2>
+    <div class="card">
+      <div class="interp-grid">
+        <div class="interp-card">
+          <div class="interp-range" style="color:var(--green)">Y-axis: TPR (Recall)</div>
+          <p style="font-size:.8rem;color:var(--muted)">= TP/(TP+FN). What fraction of actual defaults did we catch? Higher = better for the bank.</p>
+        </div>
+        <div class="interp-card">
+          <div class="interp-range" style="color:var(--danger)">X-axis: FPR</div>
+          <p style="font-size:.8rem;color:var(--muted)">= FP/(FP+TN). What fraction of good customers did we incorrectly decline? Lower = better.</p>
+        </div>
+      </div>
+      <p style="font-size:.85rem;color:var(--muted);margin-top:.5rem">
+        As threshold decreases: more applicants are flagged as defaulters → TPR rises (catch more defaults)
+        <em>but also</em> FPR rises (more false alarms). The ROC curve traces this tradeoff.
+      </p>
+    </div>
+
+    <!-- ── ROC curve ───────────────────────────────────────────── -->
+    <h2 class="section-heading">ROC curve for the loan model</h2>
+    <p class="section-sub">
+      Drag the threshold slider. The
+      <span style="color:var(--gold)">gold dot</span> shows the current operating point.
+    </p>
+
+    <div class="chart-wrap">
+      <canvas id="roc-canvas" width="460" height="460"></canvas>
+      <div class="slider-row">
+        <label>Threshold</label>
+        <input type="range" id="sl-thresh" min="0.05" max="0.95" value="0.5" step="0.05" />
+        <span class="slider-val" id="val-thresh">0.50</span>
+      </div>
+      <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-top:.6rem;padding:.6rem .9rem;background:var(--surface);border-radius:var(--radius-sm);font-size:.85rem">
+        <span>TPR (Recall): <strong style="font-family:var(--mono);color:var(--green)" id="tpr-out">–</strong></span>
+        <span>FPR: <strong style="font-family:var(--mono);color:var(--danger)" id="fpr-out">–</strong></span>
+      </div>
+    </div>
+
+    <!-- ── AUC ────────────────────────────────────────────────── -->
+    <h2 class="section-heading">AUC — Area Under the Curve</h2>
+    <div class="card" style="text-align:center">
+      <div class="auc-big" id="auc-val">–</div>
+      <div class="auc-lbl">AUC for our loan model</div>
+    </div>
+
+    <div class="interp-grid">
+      <div class="interp-card">
+        <div class="interp-range" style="color:var(--muted)">AUC = 0.5</div>
+        <p style="font-size:.8rem;color:var(--muted)">Random guessing. The model provides no useful signal.</p>
+      </div>
+      <div class="interp-card">
+        <div class="interp-range" style="color:var(--green)">AUC = 1.0</div>
+        <p style="font-size:.8rem;color:var(--muted)">Perfect model. All defaults ranked above all repayers.</p>
+      </div>
+    </div>
+
+    <div class="insight insight-gold">
+      <strong>Why AUC matters for the loan model:</strong>
+      AUC = probability that a randomly chosen defaulter gets a higher risk score than a randomly
+      chosen repayer. AUC is threshold-independent — it tells you how well the model
+      <em>ranks</em> applicants, regardless of where you set the cutoff.
+      A bank can use AUC to compare models and then choose the threshold based on business cost.
+    </div>
+
+    <div class="insight" style="border-color:var(--accent)">
+      <strong>Story so far:</strong>
+      ROC + AUC gives us a threshold-independent view of model quality.
+      Our loan model has reasonable AUC — much better than random.
+      <br/>
+      <strong>Next:</strong> What happens when we train a more complex model? The final tradeoff → Chapter 19
+    </div>
+
+    <div class="chapter-nav">
+      <a href="./chapter17.html" class="btn">← Chapter 17</a>
+      <a href="./chapter19.html" class="btn btn-primary">Chapter 19: Bias-Variance →</a>
+    </div>
+  </div>
+
+  <script>
+    const applicants = [
+      { id:1, income:35, y:1 }, { id:2, income:55, y:0 }, { id:3, income:42, y:1 },
+      { id:4, income:80, y:0 }, { id:5, income:28, y:1 }, { id:6, income:65, y:0 },
+      { id:7, income:38, y:1 }, { id:8, income:72, y:0 },
+    ];
+    const t0=-2.8, t1=0.055;
+    function sigmoid(z){ return 1/(1+Math.exp(-z)); }
+    const probs=applicants.map(a=>sigmoid(t0+t1*a.income));
+
+    // Build ROC points
+    const thresholds=[];
+    for(let t=0;t<=1.01;t+=0.02) thresholds.push(t);
+    const rocPoints=thresholds.map(thresh=>{
+      let tp=0,tn=0,fp=0,fn=0;
+      applicants.forEach((a,i)=>{
+        const pred=probs[i]>=thresh;
+        if(pred&&a.y===1)tp++;
+        else if(!pred&&a.y===0)tn++;
+        else if(pred&&a.y===0)fp++;
+        else fn++;
+      });
+      const tpr=tp+fn>0?tp/(tp+fn):0;
+      const fpr=fp+tn>0?fp/(fp+tn):0;
+      return {thresh,tpr,fpr};
+    });
+
+    // AUC via trapezoidal rule
+    const sortedByFPR=[...rocPoints].sort((a,b)=>a.fpr-b.fpr);
+    let auc=0;
+    for(let i=1;i<sortedByFPR.length;i++){
+      const dx=sortedByFPR[i].fpr-sortedByFPR[i-1].fpr;
+      const avgTPR=(sortedByFPR[i].tpr+sortedByFPR[i-1].tpr)/2;
+      auc+=dx*avgTPR;
+    }
+    document.getElementById('auc-val').textContent=auc.toFixed(3);
+
+    const canvas=document.getElementById('roc-canvas');
+    const ctx=canvas.getContext('2d');
+
+    function draw(){
+      const thresh=parseFloat(document.getElementById('sl-thresh').value);
+      document.getElementById('val-thresh').textContent=thresh.toFixed(2);
+
+      const W=canvas.width, H=canvas.height, pad=45;
+      ctx.clearRect(0,0,W,H);
+      const sx=v=>pad+v*(W-2*pad);
+      const sy=v=>H-pad-v*(H-2*pad);
+
+      // Grid
+      [0,.2,.4,.6,.8,1].forEach(v=>{
+        ctx.strokeStyle='#1c2533'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(pad,sy(v)); ctx.lineTo(W-pad,sy(v)); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sx(v),pad); ctx.lineTo(sx(v),H-pad); ctx.stroke();
+        ctx.fillStyle='#6b7c90'; ctx.font='9px IBM Plex Mono'; ctx.textAlign='right';
+        ctx.fillText(v.toFixed(1), pad-4, sy(v)+3);
+        ctx.textAlign='center';
+        ctx.fillText(v.toFixed(1), sx(v), H-pad+14);
+      });
+
+      // Diagonal (random)
+      ctx.strokeStyle='#2a3a50'; ctx.lineWidth=1.5; ctx.setLineDash([5,3]);
+      ctx.beginPath(); ctx.moveTo(sx(0),sy(0)); ctx.lineTo(sx(1),sy(1)); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // AUC fill
+      ctx.fillStyle='rgba(59,130,246,0.12)';
+      ctx.beginPath();
+      ctx.moveTo(sx(0),sy(0));
+      sortedByFPR.forEach(p=>ctx.lineTo(sx(p.fpr),sy(p.tpr)));
+      ctx.lineTo(sx(1),sy(0)); ctx.closePath(); ctx.fill();
+
+      // ROC curve
+      ctx.strokeStyle='#3b82f6'; ctx.lineWidth=2.5;
+      ctx.beginPath();
+      sortedByFPR.forEach((p,i)=>i===0?ctx.moveTo(sx(p.fpr),sy(p.tpr)):ctx.lineTo(sx(p.fpr),sy(p.tpr)));
+      ctx.stroke();
+
+      // Current threshold point
+      const cur=rocPoints.find(p=>Math.abs(p.thresh-thresh)<0.015)||rocPoints[Math.round(thresh/0.02)];
+      if(cur){
+        ctx.beginPath(); ctx.arc(sx(cur.fpr),sy(cur.tpr),8,0,Math.PI*2);
+        ctx.fillStyle='#c9a45c'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.fill(); ctx.stroke();
+        document.getElementById('tpr-out').textContent=(cur.tpr*100).toFixed(0)+'%';
+        document.getElementById('fpr-out').textContent=(cur.fpr*100).toFixed(0)+'%';
+      }
+
+      // Axes labels
+      ctx.fillStyle='#6b7c90'; ctx.font='11px IBM Plex Sans'; ctx.textAlign='center';
+      ctx.fillText('False Positive Rate (FPR)', W/2, H-4);
+      ctx.save(); ctx.translate(12,H/2); ctx.rotate(-Math.PI/2); ctx.fillText('True Positive Rate (TPR)', 0,0); ctx.restore();
+    }
+
+    document.getElementById('sl-thresh').addEventListener('input',draw);
+    draw();
+  </script>
+</body>
+</html>

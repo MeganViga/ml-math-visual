@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chapter 14 — Derivatives | Math for ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .act-badge { display:inline-block; padding:.2rem .7rem; border-radius:20px; font-size:.72rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; border:1px solid #34d399; color:#34d399; margin-bottom:.6rem; }
+    canvas#deriv-canvas { width:100%; height:260px; display:block; }
+    .chart-wrap { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; }
+    .slider-row { display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-top:.8rem; }
+    .slider-row label { font-size:.82rem; color:var(--muted); min-width:100px; }
+    .slider-row input[type=range] { flex:1; min-width:100px; }
+    .slider-val { font-family:var(--mono); color:var(--accent); min-width:60px; }
+    .deriv-info { display:flex; gap:1.5rem; flex-wrap:wrap; margin-top:.8rem; padding:.7rem 1rem; background:var(--surface); border-radius:var(--radius-sm); font-size:.88rem; }
+    .concept-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    @media(max-width:540px){ .concept-grid{grid-template-columns:1fr;} }
+    .concept-card { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:.9rem; }
+    .concept-title { font-size:.82rem; font-weight:600; color:var(--text); margin-bottom:.4rem; }
+    .concept-body { font-size:.8rem; color:var(--muted); line-height:1.6; }
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li><li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html">3</a></li><li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li><li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li><li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li><li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html" class="active">14</a></li>
+      <li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li><li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="chapter-hero">
+      <div class="act-badge">Act 4 · Calculus</div>
+      <div class="chapter-eyebrow">Chapter 14 of 19</div>
+      <h1 class="chapter-title">Derivatives — The Slope of the Loss</h1>
+      <p class="chapter-intro">
+        In Ch 13 we have a loss function L(θ). To minimise it, we need to know which direction
+        is "downhill". The <strong>derivative</strong> dL/dθ answers that — it is the instantaneous
+        slope of L at any point. Gradient descent (Ch 16) is entirely built on this one idea.
+      </p>
+    </div>
+
+    <!-- ── Concepts ───────────────────────────────────────────── -->
+    <h2 class="section-heading">What a derivative tells us</h2>
+    <div class="concept-grid">
+      <div class="concept-card">
+        <div class="concept-title" style="color:var(--accent)">dL/dθ &gt; 0 (positive slope)</div>
+        <div class="concept-body">Loss increases as θ increases. To reduce loss, move θ to the <strong>left</strong> (decrease θ).</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-title" style="color:var(--green)">dL/dθ &lt; 0 (negative slope)</div>
+        <div class="concept-body">Loss decreases as θ increases. To reduce loss, move θ to the <strong>right</strong> (increase θ).</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-title" style="color:var(--gold)">dL/dθ = 0</div>
+        <div class="concept-body">We're at a minimum (or maximum). Gradient descent stops here — this is the optimal θ.</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-title" style="color:var(--muted)">|dL/dθ| large</div>
+        <div class="concept-body">Steep slope — we're far from the minimum. Take a bigger step (but not too big!).</div>
+      </div>
+    </div>
+
+    <!-- ── Interactive derivative ─────────────────────────────── -->
+    <h2 class="section-heading">Tangent line on the cross-entropy loss curve</h2>
+    <p class="section-sub">
+      Drag θ₁ to any point on the loss surface. The <strong style="color:var(--gold)">gold line</strong>
+      is the tangent — its slope is the derivative. When slope = 0, you're at the minimum.
+    </p>
+
+    <div class="chart-wrap">
+      <canvas id="deriv-canvas" width="800" height="260"></canvas>
+      <div class="slider-row">
+        <label>θ₁ position</label>
+        <input type="range" id="sl-t1" min="-0.14" max="0.14" value="-0.1" step="0.005" />
+        <span class="slider-val" id="val-t1">−0.100</span>
+      </div>
+      <div class="deriv-info">
+        <span>Current θ₁: <strong style="font-family:var(--mono);color:var(--text)" id="t1-out">–</strong></span>
+        <span>Loss L: <strong style="font-family:var(--mono);color:var(--accent)" id="loss-out">–</strong></span>
+        <span>dL/dθ₁: <strong style="font-family:var(--mono);color:var(--gold)" id="deriv-out">–</strong></span>
+        <span style="color:var(--muted)" id="direction-out">–</span>
+      </div>
+    </div>
+
+    <!-- ── Chain rule note ────────────────────────────────────── -->
+    <h2 class="section-heading">The chain rule — how ∂L/∂θ is computed</h2>
+    <div class="card">
+      <p style="font-size:.88rem;color:var(--muted);margin-bottom:.8rem">
+        Cross-entropy loss flows through several functions. The chain rule lets us differentiate through all of them:
+      </p>
+      <div style="background:var(--surface);border-radius:var(--radius-sm);padding:.8rem 1rem;font-family:var(--mono);font-size:.82rem;overflow-x:auto;line-height:2.2">
+        <span style="color:var(--muted)">L = −log(σ(z))</span><br/>
+        <span style="color:var(--accent)">∂L/∂z = σ(z) − y</span>
+        <span style="color:var(--muted)"> &nbsp;(sigmoid gradient — elegant!)</span><br/>
+        <span style="color:var(--accent)">∂L/∂θⱼ = (σ(z) − y) · xⱼ</span>
+        <span style="color:var(--muted)"> &nbsp;(chain rule: multiply by ∂z/∂θⱼ = xⱼ)</span>
+      </div>
+      <p style="font-size:.82rem;color:var(--muted);margin-top:.8rem">
+        This says: the gradient for weight θⱼ is proportional to <strong>the prediction error × the feature value</strong>.
+        If income is 35k and we predicted 0.8 but the actual is 0 (repaid), the error is 0.8 and we
+        reduce θ₁ by 0.8 × 35 × α.
+      </p>
+    </div>
+
+    <div class="insight insight-gold">
+      <strong>Why this matters for the loan model:</strong>
+      The gradient ∂L/∂θ₁ tells us exactly how to adjust the income weight to better predict defaults.
+      Features with large values (like income in $k) will produce large gradients — this is why
+      normalising features (Ch 10 z-scores) is important before training.
+    </div>
+
+    <div class="insight" style="border-color:var(--accent)">
+      <strong>Story so far:</strong>
+      We know L(θ) (cross-entropy, Ch 13) and how to compute its derivative dL/dθ (chain rule).
+      <br/>
+      <strong>Next:</strong> When loss depends on θ₀ and θ₁ simultaneously, we need <em>partial</em> derivatives → Chapter 15
+    </div>
+
+    <div class="chapter-nav">
+      <a href="./chapter13.html" class="btn">← Chapter 13</a>
+      <a href="./chapter15.html" class="btn btn-primary">Chapter 15: Partial Derivatives →</a>
+    </div>
+  </div>
+
+  <script>
+    const applicants = [
+      { id:1, income:35, y:1 }, { id:2, income:55, y:0 }, { id:3, income:42, y:1 },
+      { id:4, income:80, y:0 }, { id:5, income:28, y:1 }, { id:6, income:65, y:0 },
+      { id:7, income:38, y:1 }, { id:8, income:72, y:0 },
+    ];
+    const t0 = -2.5;
+    function sigmoid(z){ return 1/(1+Math.exp(-z)); }
+    function loss(t1){
+      return -applicants.reduce((s,a)=>{
+        const p=sigmoid(t0+t1*a.income);
+        return s+(a.y===1?Math.log(p+1e-10):Math.log(1-p+1e-10));
+      },0)/applicants.length;
+    }
+    function derivative(t1){ return (loss(t1+0.001)-loss(t1-0.001))/0.002; }
+
+    const canvas = document.getElementById('deriv-canvas');
+    const ctx = canvas.getContext('2d');
+
+    function draw() {
+      const t1 = parseFloat(document.getElementById('sl-t1').value);
+      document.getElementById('val-t1').textContent = t1.toFixed(3);
+      const W=canvas.width, H=canvas.height;
+      const padL=55, padR=20, padT=20, padB=40;
+      ctx.clearRect(0,0,W,H);
+
+      const t1Min=-0.15, t1Max=0.15, steps=200;
+      const pts=[];
+      for(let i=0;i<=steps;i++){
+        const t=t1Min+(t1Max-t1Min)*i/steps;
+        pts.push({t,l:loss(t)});
+      }
+      const lMin=Math.min(...pts.map(p=>p.l)), lMax=Math.max(...pts.map(p=>p.l));
+      const sx=v=>padL+(v-t1Min)/(t1Max-t1Min)*(W-padL-padR);
+      const sy=v=>H-padB-(v-lMin)/(lMax-lMin+1e-9)*(H-padT-padB)*0.92;
+
+      // Grid
+      [0,.25,.5,.75,1].forEach(pct=>{
+        const lv=lMin+pct*(lMax-lMin);
+        ctx.strokeStyle='#1c2533'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(padL,sy(lv)); ctx.lineTo(W-padR,sy(lv)); ctx.stroke();
+        ctx.fillStyle='#6b7c90'; ctx.font='9px IBM Plex Mono'; ctx.textAlign='right';
+        ctx.fillText(lv.toFixed(2), padL-3, sy(lv)+3);
+      });
+
+      // Loss curve
+      ctx.strokeStyle='#3b82f6'; ctx.lineWidth=2.5;
+      ctx.beginPath();
+      pts.forEach(({t,l},i)=>{i===0?ctx.moveTo(sx(t),sy(l)):ctx.lineTo(sx(t),sy(l));});
+      ctx.stroke();
+
+      // Tangent line
+      const L = loss(t1);
+      const dL = derivative(t1);
+      const tangentLength = 0.08;
+      const x1=t1-tangentLength, x2=t1+tangentLength;
+      const y1=L+dL*(x1-t1), y2=L+dL*(x2-t1);
+      ctx.strokeStyle='#c9a45c'; ctx.lineWidth=2.5;
+      ctx.beginPath(); ctx.moveTo(sx(x1),sy(y1)); ctx.lineTo(sx(x2),sy(y2)); ctx.stroke();
+
+      // Point on curve
+      ctx.beginPath(); ctx.arc(sx(t1),sy(L),7,0,Math.PI*2);
+      ctx.fillStyle='#c9a45c'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.fill(); ctx.stroke();
+
+      // Axes
+      ctx.strokeStyle='#2a3a50'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(padL,padT); ctx.lineTo(padL,H-padB); ctx.lineTo(W-padR,H-padB); ctx.stroke();
+      ctx.fillStyle='#6b7c90'; ctx.font='11px IBM Plex Sans'; ctx.textAlign='center';
+      ctx.fillText('θ₁ (income weight)', W/2, H-4);
+      ctx.save(); ctx.translate(14,H/2); ctx.rotate(-Math.PI/2);
+      ctx.fillText('Cross-entropy loss L', 0, 0); ctx.restore();
+
+      [-0.1,0,0.1].forEach(v=>{
+        ctx.fillStyle='#6b7c90'; ctx.font='9px IBM Plex Mono'; ctx.textAlign='center';
+        ctx.fillText(v.toFixed(2), sx(v), H-padB+14);
+      });
+
+      document.getElementById('t1-out').textContent = t1.toFixed(3);
+      document.getElementById('loss-out').textContent = L.toFixed(4);
+      document.getElementById('deriv-out').textContent = dL.toFixed(4);
+      const dir = Math.abs(dL) < 0.01 ? '← at minimum →' : dL > 0 ? '← move left to reduce L' : '→ move right to reduce L';
+      document.getElementById('direction-out').textContent = dir;
+    }
+
+    document.getElementById('sl-t1').addEventListener('input', draw);
+    draw();
+  </script>
+</body>
+</html>

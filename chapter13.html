@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chapter 13 — Cross-Entropy Loss | Math for ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .act-badge { display:inline-block; padding:.2rem .7rem; border-radius:20px; font-size:.72rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; border:1px solid #a78bfa; color:#a78bfa; margin-bottom:.6rem; }
+    canvas#ce-canvas { width:100%; height:220px; display:block; }
+    canvas#loss-curve { width:100%; height:220px; display:block; }
+    .chart-wrap { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; }
+    .slider-row { display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-top:.8rem; }
+    .slider-row label { font-size:.82rem; color:var(--muted); min-width:120px; }
+    .slider-row input[type=range] { flex:1; min-width:100px; }
+    .slider-val { font-family:var(--mono); color:var(--accent); min-width:50px; }
+    .two-col { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    @media(max-width:580px){ .two-col{grid-template-columns:1fr;} }
+    .loss-pill { display:inline-block; padding:.2rem .6rem; border-radius:4px; font-family:var(--mono); font-size:.88rem; }
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li><li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html">3</a></li><li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li><li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li><li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html">11</a></li><li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html" class="active">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li><li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li><li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="chapter-hero">
+      <div class="act-badge">Act 3 · Probability</div>
+      <div class="chapter-eyebrow">Chapter 13 of 19</div>
+      <h1 class="chapter-title">Cross-Entropy Loss</h1>
+      <p class="chapter-intro">
+        In Ch 12, MLE told us to maximise the log-likelihood. Flipping the sign gives us
+        the <strong>cross-entropy loss</strong> — the number we minimise to train the model.
+        This is the classification equivalent of SSR from Ch 2.
+      </p>
+    </div>
+
+    <!-- ── Why not SSR? ───────────────────────────────────────── -->
+    <h2 class="section-heading">Why we can't use SSR for classification</h2>
+    <div class="card">
+      <div class="two-col">
+        <div>
+          <div class="card-title" style="color:var(--muted)">SSR (regression)</div>
+          <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0">
+            L = Σ(yᵢ − ŷᵢ)² where ŷᵢ ∈ ℝ<br/>
+            Smooth, convex for linear model.<br/>
+            But with sigmoid, SSR is <em>non-convex</em>
+            — gradient descent gets stuck in local minima.
+          </p>
+        </div>
+        <div>
+          <div class="card-title" style="color:var(--accent)">Cross-Entropy (classification)</div>
+          <p style="font-size:.85rem;color:var(--muted);margin:.5rem 0">
+            L = −Σ[yᵢ log(p̂ᵢ) + (1−yᵢ)log(1−p̂ᵢ)]<br/>
+            Always convex with sigmoid.<br/>
+            One global minimum → gradient descent always converges.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── -log(p) visualised ────────────────────────────────── -->
+    <h2 class="section-heading">Why −log(p) is the right penalty</h2>
+    <p class="section-sub">
+      Move the slider to set predicted probability. See how the loss behaves for a defaulter (y=1).
+      When you predict p=0.9 for a defaulter → small loss. p=0.1 → huge penalty.
+    </p>
+    <div class="chart-wrap">
+      <canvas id="ce-canvas" width="800" height="220"></canvas>
+      <div class="slider-row">
+        <label>Predicted P(default)</label>
+        <input type="range" id="sl-p" min="0.01" max="0.99" value="0.7" step="0.01" />
+        <span class="slider-val" id="val-p">0.70</span>
+      </div>
+      <div style="margin-top:.8rem;padding:.7rem 1rem;background:var(--surface);border-radius:var(--radius-sm);font-size:.88rem;display:flex;gap:1.5rem;flex-wrap:wrap">
+        <span>Actual: <strong style="color:var(--danger)">Defaulted (y=1)</strong></span>
+        <span>Loss = −log(p) = <strong style="font-family:var(--mono);color:var(--accent)" id="ce-val">–</strong></span>
+      </div>
+    </div>
+
+    <!-- ── Total loss over all applicants ────────────────────── -->
+    <h2 class="section-heading">Total cross-entropy loss as θ₁ changes</h2>
+    <p class="section-sub">
+      This is the loss surface we will descend in Ch 16. The minimum is where θ₁ produces
+      probabilities that best match all 8 applicants' outcomes simultaneously.
+    </p>
+    <div class="chart-wrap">
+      <canvas id="loss-curve" width="800" height="220"></canvas>
+    </div>
+    <div style="margin-top:.6rem;padding:.7rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.88rem;display:flex;gap:1.5rem;flex-wrap:wrap">
+      <span>Current θ₁: <strong style="font-family:var(--mono);color:var(--accent)" id="t1-display">0.05</strong></span>
+      <span>Cross-entropy loss: <strong style="font-family:var(--mono);color:var(--gold)" id="loss-display">–</strong></span>
+    </div>
+    <div class="slider-row" style="margin-top:.6rem">
+      <label>θ₁ (income)</label>
+      <input type="range" id="sl-t1" min="-0.15" max="0.15" value="0.05" step="0.005" />
+      <span class="slider-val" id="val-t1b">0.050</span>
+    </div>
+
+    <div class="insight insight-gold">
+      <strong>Why this matters for the loan model:</strong>
+      Cross-entropy loss penalises confident wrong predictions heavily — exactly what we want.
+      If our model says 99% chance the applicant will repay and they default, the loss is enormous.
+      This makes the model more careful, especially for high-stakes errors.
+    </div>
+
+    <div class="insight" style="border-color:var(--accent)">
+      <strong>Story so far (Probability: Ch 11–13):</strong>
+      Logistic regression converts z=Xθ to a probability via sigmoid (Ch 11). We choose θ
+      to maximise likelihood (Ch 12). That is identical to minimising cross-entropy loss (Ch 13).
+      <br/>
+      <strong>Next:</strong> To minimise loss, we need to know which direction to move θ. That requires calculus → Chapter 14
+    </div>
+
+    <div class="chapter-nav">
+      <a href="./chapter12.html" class="btn">← Chapter 12</a>
+      <a href="./chapter14.html" class="btn btn-primary">Chapter 14: Derivatives →</a>
+    </div>
+  </div>
+
+  <script>
+    const applicants = [
+      { id:1, income:35, y:1 }, { id:2, income:55, y:0 }, { id:3, income:42, y:1 },
+      { id:4, income:80, y:0 }, { id:5, income:28, y:1 }, { id:6, income:65, y:0 },
+      { id:7, income:38, y:1 }, { id:8, income:72, y:0 },
+    ];
+    const t0_fixed = -2.5;
+    function sigmoid(z){ return 1/(1+Math.exp(-z)); }
+    function crossEntropy(t1) {
+      return -applicants.reduce((s,a)=>{
+        const p=sigmoid(t0_fixed+t1*a.income);
+        return s+(a.y===1?Math.log(p+1e-10):Math.log(1-p+1e-10));
+      },0)/applicants.length;
+    }
+
+    // ── -log(p) curve ──────────────────────────────────────────
+    const ceCanvas = document.getElementById('ce-canvas');
+    const ceCtx = ceCanvas.getContext('2d');
+    function drawCE() {
+      const p = parseFloat(document.getElementById('sl-p').value);
+      document.getElementById('val-p').textContent = p.toFixed(2);
+      const loss = -Math.log(p);
+      document.getElementById('ce-val').textContent = loss.toFixed(3);
+
+      const W=ceCanvas.width, H=ceCanvas.height;
+      const padL=50, padR=20, padT=20, padB=40;
+      ceCtx.clearRect(0,0,W,H);
+      const maxLoss=5;
+      const sx=v=>padL+v*(W-padL-padR);
+      const sy=v=>H-padB-Math.min(v,maxLoss)/maxLoss*(H-padT-padB);
+
+      // Grid
+      [0,1,2,3,4,5].forEach(lv=>{
+        ceCtx.strokeStyle='#1c2533'; ceCtx.lineWidth=1;
+        ceCtx.beginPath(); ceCtx.moveTo(padL,sy(lv)); ceCtx.lineTo(W-padR,sy(lv)); ceCtx.stroke();
+        ceCtx.fillStyle='#6b7c90'; ceCtx.font='9px IBM Plex Mono'; ceCtx.textAlign='right';
+        ceCtx.fillText(lv.toFixed(0), padL-3, sy(lv)+3);
+      });
+
+      // Curve
+      ceCtx.strokeStyle='#f87171'; ceCtx.lineWidth=2.5;
+      ceCtx.beginPath();
+      for(let i=1;i<=300;i++){
+        const pv=i/300;
+        const lv=-Math.log(pv);
+        const x=sx(pv), y=sy(lv);
+        i===1?ceCtx.moveTo(x,y):ceCtx.lineTo(x,y);
+      }
+      ceCtx.stroke();
+
+      // Shaded area
+      const px=sx(p), py=sy(loss);
+      ceCtx.strokeStyle='#c9a45c'; ceCtx.lineWidth=1.5; ceCtx.setLineDash([4,3]);
+      ceCtx.beginPath(); ceCtx.moveTo(px,H-padB); ceCtx.lineTo(px,py); ceCtx.stroke();
+      ceCtx.beginPath(); ceCtx.moveTo(padL,py); ceCtx.lineTo(px,py); ceCtx.stroke();
+      ceCtx.setLineDash([]);
+      ceCtx.beginPath(); ceCtx.arc(px,py,7,0,Math.PI*2);
+      ceCtx.fillStyle='#c9a45c'; ceCtx.strokeStyle='#fff'; ceCtx.lineWidth=2; ceCtx.fill(); ceCtx.stroke();
+
+      // Axes
+      ceCtx.strokeStyle='#2a3a50'; ceCtx.lineWidth=1;
+      ceCtx.beginPath(); ceCtx.moveTo(padL,padT); ceCtx.lineTo(padL,H-padB); ceCtx.lineTo(W-padR,H-padB); ceCtx.stroke();
+      ceCtx.fillStyle='#6b7c90'; ceCtx.font='11px IBM Plex Sans'; ceCtx.textAlign='center';
+      ceCtx.fillText('Predicted P(default)', W/2, H-4);
+      ceCtx.save(); ceCtx.translate(14,H/2); ceCtx.rotate(-Math.PI/2);
+      ceCtx.fillText('Loss = −log(p)', 0, 0); ceCtx.restore();
+
+      [0.2,0.4,0.6,0.8,1.0].forEach(pv=>{
+        ceCtx.fillStyle='#6b7c90'; ceCtx.font='9px IBM Plex Mono'; ceCtx.textAlign='center';
+        ceCtx.fillText(pv.toFixed(1), sx(pv), H-padB+14);
+      });
+    }
+
+    // ── Total loss curve ───────────────────────────────────────
+    const lcCanvas = document.getElementById('loss-curve');
+    const lcCtx = lcCanvas.getContext('2d');
+    function drawLossCurve(currentT1) {
+      const W=lcCanvas.width, H=lcCanvas.height;
+      const padL=55, padR=20, padT=20, padB=40;
+      lcCtx.clearRect(0,0,W,H);
+      const t1Min=-0.15, t1Max=0.15, steps=200;
+      const pts=[];
+      for(let i=0;i<=steps;i++){
+        const t=t1Min+(t1Max-t1Min)*i/steps;
+        pts.push({t, l:crossEntropy(t)});
+      }
+      const lMin=Math.min(...pts.map(p=>p.l)), lMax=Math.max(...pts.map(p=>p.l));
+      const sx=v=>padL+(v-t1Min)/(t1Max-t1Min)*(W-padL-padR);
+      const sy=v=>H-padB-(v-lMin)/(lMax-lMin+1e-9)*(H-padT-padB);
+
+      [0,.25,.5,.75,1].forEach(pct=>{
+        const lv=lMin+pct*(lMax-lMin);
+        lcCtx.strokeStyle='#1c2533'; lcCtx.lineWidth=1;
+        lcCtx.beginPath(); lcCtx.moveTo(padL,sy(lv)); lcCtx.lineTo(W-padR,sy(lv)); lcCtx.stroke();
+        lcCtx.fillStyle='#6b7c90'; lcCtx.font='9px IBM Plex Mono'; lcCtx.textAlign='right';
+        lcCtx.fillText(lv.toFixed(2), padL-3, sy(lv)+3);
+      });
+
+      lcCtx.strokeStyle='#3b82f6'; lcCtx.lineWidth=2.5;
+      lcCtx.beginPath();
+      pts.forEach(({t,l},i)=>{i===0?lcCtx.moveTo(sx(t),sy(l)):lcCtx.lineTo(sx(t),sy(l));});
+      lcCtx.stroke();
+
+      const cl=crossEntropy(currentT1);
+      lcCtx.strokeStyle='#c9a45c'; lcCtx.lineWidth=2; lcCtx.setLineDash([5,3]);
+      lcCtx.beginPath(); lcCtx.moveTo(sx(currentT1),padT); lcCtx.lineTo(sx(currentT1),H-padB); lcCtx.stroke();
+      lcCtx.setLineDash([]);
+      lcCtx.beginPath(); lcCtx.arc(sx(currentT1),sy(cl),7,0,Math.PI*2);
+      lcCtx.fillStyle='#c9a45c'; lcCtx.strokeStyle='#fff'; lcCtx.lineWidth=2; lcCtx.fill(); lcCtx.stroke();
+
+      lcCtx.strokeStyle='#2a3a50'; lcCtx.lineWidth=1;
+      lcCtx.beginPath(); lcCtx.moveTo(padL,padT); lcCtx.lineTo(padL,H-padB); lcCtx.lineTo(W-padR,H-padB); lcCtx.stroke();
+      lcCtx.fillStyle='#6b7c90'; lcCtx.font='11px IBM Plex Sans'; lcCtx.textAlign='center';
+      lcCtx.fillText('θ₁ (income weight)', W/2, H-4);
+      lcCtx.save(); lcCtx.translate(14,H/2); lcCtx.rotate(-Math.PI/2);
+      lcCtx.fillText('Cross-entropy loss', 0, 0); lcCtx.restore();
+
+      [-0.1,0,0.1].forEach(v=>{
+        lcCtx.fillStyle='#6b7c90'; lcCtx.font='9px IBM Plex Mono'; lcCtx.textAlign='center';
+        lcCtx.fillText(v.toFixed(2), sx(v), H-padB+14);
+      });
+
+      document.getElementById('t1-display').textContent = currentT1.toFixed(3);
+      document.getElementById('loss-display').textContent = cl.toFixed(4);
+      document.getElementById('val-t1b').textContent = currentT1.toFixed(3);
+    }
+
+    document.getElementById('sl-p').addEventListener('input', drawCE);
+    document.getElementById('sl-t1').addEventListener('input', ()=>{
+      drawLossCurve(parseFloat(document.getElementById('sl-t1').value));
+    });
+    drawCE();
+    drawLossCurve(0.05);
+  </script>
+</body>
+</html>

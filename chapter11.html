@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chapter 11 — Logistic Regression | Math for ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .act-badge { display:inline-block; padding:.2rem .7rem; border-radius:20px; font-size:.72rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; border:1px solid #a78bfa; color:#a78bfa; margin-bottom:.6rem; }
+    .pipeline { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; margin:1rem 0; }
+    .pipe-box { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:.5rem .9rem; font-size:.85rem; text-align:center; }
+    .pipe-arrow { color:var(--muted); font-size:1.2rem; }
+    .pipe-box.highlight { border-color:#a78bfa; color:#a78bfa; }
+
+    canvas#sigmoid-canvas { width:100%; height:240px; display:block; }
+    .sig-wrap { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; }
+    .slider-row { display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-top:.8rem; }
+    .slider-row label { font-size:.82rem; color:var(--muted); min-width:80px; }
+    .slider-row input[type=range] { flex:1; min-width:100px; }
+    .slider-val { font-family:var(--mono); color:var(--accent); min-width:50px; font-size:.85rem; }
+
+    .pred-row { display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; margin:.4rem 0; padding:.55rem .9rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); font-size:.84rem; }
+    .prob-bar-wrap { flex:1; background:var(--surface2); border-radius:4px; height:12px; overflow:hidden; min-width:80px; }
+    .prob-bar { height:100%; border-radius:4px; transition:width .2s; }
+    .dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <span class="topnav-brand">Math for ML</span>
+    <ul class="topnav-links">
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./chapter1.html">1</a></li><li><a href="./chapter2.html">2</a></li>
+      <li><a href="./chapter3.html">3</a></li><li><a href="./chapter4.html">4</a></li>
+      <li><a href="./chapter5.html">5</a></li><li><a href="./chapter6.html">6</a></li>
+      <li><a href="./chapter7.html">7</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter8.html">8</a></li><li><a href="./chapter9.html">9</a></li>
+      <li><a href="./chapter10.html">10</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter11.html" class="active">11</a></li>
+      <li><a href="./chapter12.html">12</a></li>
+      <li><a href="./chapter13.html">13</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter14.html">14</a></li><li><a href="./chapter15.html">15</a></li>
+      <li><a href="./chapter16.html">16</a></li>
+      <li style="color:var(--border)">│</li>
+      <li><a href="./chapter17.html">17</a></li><li><a href="./chapter18.html">18</a></li>
+      <li><a href="./chapter19.html">19</a></li>
+      <li><a href="./ref-practice.html">REF ↗</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="chapter-hero">
+      <div class="act-badge">Act 3 · Probability</div>
+      <div class="chapter-eyebrow">Chapter 11 of 19</div>
+      <h1 class="chapter-title">From Scores to Probabilities</h1>
+      <p class="chapter-intro">
+        Linear regression (Ch 1–7) gave us a number: predicted house price.
+        For loan default, we need a <em>probability</em> between 0 and 1.
+        The fix is one function: the <strong>sigmoid</strong> σ(z) = 1 / (1 + e⁻ᶻ).
+        This is the bridge from linear algebra to probability.
+      </p>
+    </div>
+
+    <!-- ── Pipeline ───────────────────────────────────────────── -->
+    <h2 class="section-heading">The logistic regression pipeline</h2>
+    <div class="pipeline">
+      <div class="pipe-box">Features x<br/><span style="font-size:.72rem;color:var(--muted)">[income, age, debt]</span></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-box">Linear score<br/><span style="font-size:.72rem;color:var(--accent);font-family:var(--mono)">z = xᵀθ</span></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-box highlight">Sigmoid<br/><span style="font-size:.72rem;font-family:var(--mono)">σ(z) = 1/(1+e⁻ᶻ)</span></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-box">P(default)<br/><span style="font-size:.72rem;color:var(--gold);font-family:var(--mono)">ŷ ∈ [0,1]</span></div>
+    </div>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">
+      Step 1 is exactly Ch 3's matrix multiplication <code>z = Xθ</code>. Step 2 squashes any real number to (0,1).
+    </p>
+
+    <!-- ── Sigmoid interactive ────────────────────────────────── -->
+    <h2 class="section-heading">The sigmoid function — interactive</h2>
+    <p class="section-sub">
+      Drag the sliders to set θ₀ (bias) and θ₁ (income weight). The gold dot shows where
+      an applicant with the given income lands on the probability curve.
+    </p>
+
+    <div class="sig-wrap">
+      <canvas id="sigmoid-canvas" width="800" height="240"></canvas>
+      <div class="slider-row">
+        <label>θ₀ (bias)</label>
+        <input type="range" id="sl-t0" min="-5" max="5" value="-2" step="0.1" />
+        <span class="slider-val" id="val-t0">−2.0</span>
+      </div>
+      <div class="slider-row">
+        <label>θ₁ (income)</label>
+        <input type="range" id="sl-t1" min="-0.2" max="0.2" value="0.05" step="0.005" />
+        <span class="slider-val" id="val-t1">0.05</span>
+      </div>
+      <div class="slider-row">
+        <label>Income (×$10k)</label>
+        <input type="range" id="sl-inc" min="20" max="90" value="35" step="1" />
+        <span class="slider-val" id="val-inc">35k</span>
+      </div>
+      <div style="margin-top:.8rem;padding:.7rem 1rem;background:var(--surface);border-radius:var(--radius-sm);font-size:.88rem">
+        z = θ₀ + θ₁ × income = <strong style="font-family:var(--mono);color:var(--accent)" id="z-out">–</strong>
+        &nbsp;&nbsp;→&nbsp;&nbsp;
+        P(default) = σ(z) = <strong style="font-family:var(--mono);color:var(--gold)" id="p-out">–</strong>
+      </div>
+    </div>
+
+    <!-- ── Predictions for all applicants ────────────────────── -->
+    <h2 class="section-heading">Predicted probabilities for all 8 applicants</h2>
+    <p class="section-sub">
+      Using the current θ values, see how each applicant's income maps to a default probability.
+    </p>
+    <div class="card" id="pred-panel"></div>
+
+    <div class="insight insight-gold">
+      <strong>Why this matters for the loan model:</strong>
+      The sigmoid ensures our output is always a valid probability. When P(default) &gt; 0.5,
+      we decline the loan. The threshold can be adjusted — Chapter 17 will show how changing
+      the threshold affects false positives vs false negatives.
+    </div>
+
+    <div class="insight" style="border-color:var(--accent)">
+      <strong>Story so far:</strong>
+      We've added the sigmoid on top of the linear model from Ch 1–7. Now we output P(default).
+      But how do we find the best θ for a probability output? We can't use the Normal Equation —
+      logistic regression has no closed-form solution.
+      <br/>
+      <strong>Next:</strong> Find θ by maximising the probability of observing our training data → Chapter 12
+    </div>
+
+    <div class="chapter-nav">
+      <a href="./chapter10.html" class="btn">← Chapter 10</a>
+      <a href="./chapter12.html" class="btn btn-primary">Chapter 12: Max Likelihood →</a>
+    </div>
+  </div>
+
+  <script>
+    const applicants = [
+      { id:1, income:35, y:1 }, { id:2, income:55, y:0 }, { id:3, income:42, y:1 },
+      { id:4, income:80, y:0 }, { id:5, income:28, y:1 }, { id:6, income:65, y:0 },
+      { id:7, income:38, y:1 }, { id:8, income:72, y:0 },
+    ];
+    function sigmoid(z) { return 1/(1+Math.exp(-z)); }
+
+    const canvas = document.getElementById('sigmoid-canvas');
+    const ctx = canvas.getContext('2d');
+
+    function draw() {
+      const t0 = parseFloat(document.getElementById('sl-t0').value);
+      const t1 = parseFloat(document.getElementById('sl-t1').value);
+      const inc = parseFloat(document.getElementById('sl-inc').value);
+      document.getElementById('val-t0').textContent = t0.toFixed(1);
+      document.getElementById('val-t1').textContent = t1.toFixed(3);
+      document.getElementById('val-inc').textContent = inc+'k';
+
+      const W=canvas.width, H=canvas.height;
+      const padL=50, padR=20, padT=20, padB=40;
+      ctx.clearRect(0,0,W,H);
+
+      const zMin=-8, zMax=8;
+      const sx=v=>padL+(v-zMin)/(zMax-zMin)*(W-padL-padR);
+      const sy=v=>H-padB-v*(H-padT-padB);
+
+      // Grid
+      [0,.25,.5,.75,1].forEach(pv => {
+        ctx.strokeStyle='#1c2533'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(padL,sy(pv)); ctx.lineTo(W-padR,sy(pv)); ctx.stroke();
+        ctx.fillStyle='#6b7c90'; ctx.font='10px IBM Plex Mono'; ctx.textAlign='right';
+        ctx.fillText(pv.toFixed(2), padL-4, sy(pv)+4);
+      });
+      [-6,-4,-2,0,2,4,6].forEach(zv => {
+        ctx.strokeStyle='#1c2533'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(sx(zv),padT); ctx.lineTo(sx(zv),H-padB); ctx.stroke();
+        ctx.fillStyle='#6b7c90'; ctx.font='10px IBM Plex Mono'; ctx.textAlign='center';
+        ctx.fillText(zv, sx(zv), H-padB+14);
+      });
+
+      // 0.5 line
+      ctx.strokeStyle='#2a3a50'; ctx.lineWidth=1.5; ctx.setLineDash([5,3]);
+      ctx.beginPath(); ctx.moveTo(padL,sy(0.5)); ctx.lineTo(W-padR,sy(0.5)); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Sigmoid curve
+      ctx.strokeStyle='#a78bfa'; ctx.lineWidth=3;
+      ctx.beginPath();
+      for(let i=0;i<=400;i++){
+        const z=zMin+(zMax-zMin)*i/400;
+        const p=sigmoid(z);
+        i===0?ctx.moveTo(sx(z),sy(p)):ctx.lineTo(sx(z),sy(p));
+      }
+      ctx.stroke();
+
+      // Applicant dots
+      applicants.forEach(a => {
+        const z = t0 + t1*a.income;
+        if (z < zMin-1 || z > zMax+1) return;
+        const p = sigmoid(z);
+        ctx.beginPath(); ctx.arc(sx(z),sy(p),6,0,Math.PI*2);
+        ctx.fillStyle = a.y===1?'#f87171':'#4ade80';
+        ctx.strokeStyle='#0a0f18'; ctx.lineWidth=1.5;
+        ctx.fill(); ctx.stroke();
+      });
+
+      // Highlighted applicant
+      const z = t0 + t1*inc;
+      const p = sigmoid(z);
+      const cx = sx(Math.max(zMin,Math.min(zMax,z)));
+      const cy = sy(p);
+      ctx.beginPath(); ctx.arc(cx,cy,9,0,Math.PI*2);
+      ctx.fillStyle='#c9a45c'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.fill(); ctx.stroke();
+
+      // Axes labels
+      ctx.fillStyle='#6b7c90'; ctx.font='11px IBM Plex Sans'; ctx.textAlign='center';
+      ctx.fillText('Linear score z = xᵀθ', W/2, H-4);
+      ctx.save(); ctx.translate(14, H/2); ctx.rotate(-Math.PI/2);
+      ctx.fillText('P(default)', 0, 0); ctx.restore();
+
+      document.getElementById('z-out').textContent = z.toFixed(2);
+      document.getElementById('p-out').textContent = (p*100).toFixed(1)+'%';
+
+      // Prediction panel
+      const panel = document.getElementById('pred-panel');
+      panel.innerHTML = '';
+      applicants.forEach(a => {
+        const z = t0 + t1*a.income;
+        const p = sigmoid(z);
+        const correct = (p>=0.5&&a.y===1)||(p<0.5&&a.y===0);
+        const row = document.createElement('div');
+        row.className = 'pred-row';
+        row.innerHTML = `
+          <div class="dot" style="background:${a.y===1?'#f87171':'#4ade80'}"></div>
+          <span style="min-width:80px;font-size:.78rem;color:var(--muted)">Appl. ${a.id} (${a.y===1?'Defaulted':'Repaid'})</span>
+          <span style="font-family:var(--mono);font-size:.8rem;color:var(--muted)">z=${z.toFixed(2)}</span>
+          <div class="prob-bar-wrap">
+            <div class="prob-bar" style="width:${p*100}%;background:${p>=0.5?'#f87171':'#4ade80'}"></div>
+          </div>
+          <span style="min-width:46px;font-family:var(--mono);font-size:.82rem;color:${p>=0.5?'var(--danger)':'var(--green)'}">${(p*100).toFixed(0)}%</span>
+          <span style="font-size:.75rem;color:${correct?'var(--green)':'var(--danger)'}">${correct?'✓':'✗'}</span>
+        `;
+        panel.appendChild(row);
+      });
+    }
+
+    ['sl-t0','sl-t1','sl-inc'].forEach(id=>document.getElementById(id).addEventListener('input',draw));
+    draw();
+  </script>
+</body>
+</html>
